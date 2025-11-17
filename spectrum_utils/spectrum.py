@@ -348,9 +348,19 @@ class MsmsSpectrum:
             precursor charge values can be provided using the `precursor_mz`
             and `precursor_charge` keyword arguments respectively.
         """
-        spectrum_dict = pyteomics.usi.proxi(
-            urllib.parse.quote_plus(usi), backend, **kwargs
-        )
+        try:
+            spectrum_dict = pyteomics.usi.proxi(
+                urllib.parse.quote_plus(usi), backend, **kwargs
+            )
+        except KeyError as e:
+            if "'value'" in str(e):
+                raise ValueError(
+                    f"Invalid USI response format from PROXI server for USI: {usi}. "
+                    f"This appears to be an issue with the upstream PROXI API or pyteomics library. "
+                    f"Original error: {e}"
+                ) from e
+            else:
+                raise
         if "precursor_mz" not in kwargs:
             for attr in spectrum_dict["attributes"]:
                 if attr["accession"] in (
