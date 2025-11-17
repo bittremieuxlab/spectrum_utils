@@ -777,7 +777,9 @@ def _import_cv(
                         date_url = datetime.datetime.strptime(
                             json.load(response)[0]["commit"]["author"]["date"],
                             "%Y-%m-%dT%H:%M:%SZ",
-                        )
+                        ).replace(tzinfo=datetime.timezone.utc)
+                        if date_cache.tzinfo is None:
+                            date_cache = date_cache.replace(tzinfo=datetime.timezone.utc)
                         if date_cache >= date_url:
                             return cv
             except urllib.error.HTTPError:
