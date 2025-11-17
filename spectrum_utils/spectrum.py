@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import functools
+import logging
 import urllib.parse
 from typing import Dict, Iterable, Optional, Union
 
@@ -10,6 +11,8 @@ import numpy as np
 import pyteomics.usi
 
 from spectrum_utils import fragment_annotation as fa, proforma, utils
+
+logger = logging.getLogger(__name__)
 
 
 class GnpsBackend(pyteomics.usi._PROXIBackend):
@@ -21,25 +24,32 @@ class GnpsBackend(pyteomics.usi._PROXIBackend):
         super(GnpsBackend, self).__init__("GNPS", self._url_template, **kwargs)
 
 
-# Reload the Pyteomics PROXI aggregator to also include GNPS.
+# Register GNPS backend with Pyteomics PROXI aggregator.
+# This code targets pyteomics>=4.5 compatibility using the modern _proxies-based API.
 try:
+    # Try the legacy approach first (modifying global _proxies)
     pyteomics.usi._proxies["gnps"] = GnpsBackend
     pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator()
-except (TypeError, AttributeError):
-    # Newer version of pyteomics - try alternative approach
+    logger.debug("GNPS backend registered via _proxies")
+except (TypeError, AttributeError) as e:
+    # Use modern approach: build backends dict and create aggregator directly
     try:
-        if hasattr(pyteomics.usi, "register_proxi_backend"):
-            pyteomics.usi.register_proxi_backend("gnps", GnpsBackend)
-        else:
-            # Fallback: create aggregator with GNPS backend directly
-            backends = {"gnps": GnpsBackend()}
-            if hasattr(pyteomics.usi, "_proxies"):
-                backends.update(pyteomics.usi._proxies)
-            pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator(
-                backends=backends
-            )
-    except Exception:
-        # If all else fails, use default aggregator without GNPS
+        backends = {"gnps": GnpsBackend()}
+        # Merge with any existing backends
+        if hasattr(pyteomics.usi, "_proxies") and pyteomics.usi._proxies:
+            backends.update(pyteomics.usi._proxies)
+        pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator(
+            backends=backends
+        )
+        logger.debug(
+            "GNPS backend registered via manual aggregator construction"
+        )
+    except (TypeError, ValueError, ImportError) as inner_e:
+        # Fallback to default aggregator without GNPS if registration fails
+        logger.warning(
+            f"Failed to register GNPS backend ({e}, {inner_e}). "
+            "USI queries will work but GNPS backend will be unavailable."
+        )
         pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator()
 
 
