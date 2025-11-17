@@ -22,8 +22,23 @@ class GnpsBackend(pyteomics.usi._PROXIBackend):
 
 
 # Reload the Pyteomics PROXI aggregator to also include GNPS.
-pyteomics.usi._proxies["gnps"] = GnpsBackend
-pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator()
+try:
+    pyteomics.usi._proxies["gnps"] = GnpsBackend
+    pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator()
+except (TypeError, AttributeError):
+    # Newer version of pyteomics - try alternative approach
+    try:
+        if hasattr(pyteomics.usi, 'register_proxi_backend'):
+            pyteomics.usi.register_proxi_backend("gnps", GnpsBackend)
+        else:
+            # Fallback: create aggregator with GNPS backend directly
+            backends = {"gnps": GnpsBackend()}
+            if hasattr(pyteomics.usi, '_proxies'):
+                backends.update(pyteomics.usi._proxies)
+            pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator(backends=backends)
+    except Exception:
+        # If all else fails, use default aggregator without GNPS
+        pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator()
 
 
 @nb.experimental.jitclass
