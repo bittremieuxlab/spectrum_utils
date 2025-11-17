@@ -779,7 +779,9 @@ def _import_cv(
                             "%Y-%m-%dT%H:%M:%SZ",
                         ).replace(tzinfo=datetime.timezone.utc)
                         if date_cache.tzinfo is None:
-                            date_cache = date_cache.replace(tzinfo=datetime.timezone.utc)
+                            date_cache = date_cache.replace(
+                                tzinfo=datetime.timezone.utc
+                            )
                         if date_cache >= date_url:
                             return cv
             except urllib.error.HTTPError:
@@ -810,7 +812,11 @@ def _import_cv(
                 for synonym in term.get("synonym", []):
                     cv[synonym] = mass
     # Save to the cache if enabled.
-    _store_in_cache(cache, f"{cv_id}.pkl", (cv, datetime.datetime.now(datetime.timezone.utc)))
+    _store_in_cache(
+        cache,
+        f"{cv_id}.pkl",
+        (cv, datetime.datetime.now(datetime.timezone.utc)),
+    )
     return cv
 
 
@@ -882,9 +888,13 @@ def _parse_obo(
                     cv_id == "XLMOD"
                     and isinstance(clause, fastobo.term.PropertyValueClause)
                     and (
-                        (hasattr(clause.property_value.relation, 'prefix') and 
-                         clause.property_value.relation.prefix == "monoIsotopicMass") or
-                        str(clause.property_value.relation) == "monoIsotopicMass"
+                        (
+                            hasattr(clause.property_value.relation, "prefix")
+                            and clause.property_value.relation.prefix
+                            == "monoIsotopicMass"
+                        )
+                        or str(clause.property_value.relation)
+                        == "monoIsotopicMass"
                     )
                 ):
                     term_mass = float(clause.property_value.value)

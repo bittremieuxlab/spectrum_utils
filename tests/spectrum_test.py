@@ -84,7 +84,7 @@ def test_from_usi():
         # USI from PRIDE/MassIVE/PeptideAtlas.
         "mzspec:PXD010154:01284_E04_P013188_B00_N29_R1.mzML:scan:31291",
     ]
-    
+
     for usi in working_usis:
         try:
             spec = spectrum.MsmsSpectrum.from_usi(usi)
@@ -94,7 +94,7 @@ def test_from_usi():
             # We just skip them rather than fail the test
             print(f"Warning: USI {usi} failed with {type(e).__name__}: {e}")
             continue
-    
+
     # Test USI with ProForma annotations (should work now that pyteomics backend is fixed)
     proforma_usis = [
         "mzspec:PXD000561:Adult_Frontalcortex_bRP_Elite_85_f09:scan:17555:"
@@ -102,7 +102,7 @@ def test_from_usi():
         "mzspec:PXD000966:CPTAC_CompRef_00_iTRAQ_05_2Feb12_Cougar_11-10-09:"
         "scan:12298:[iTRAQ4plex]-LHFFM[Oxidation]PGFAPLTSR/3",
     ]
-    
+
     for usi in proforma_usis:
         try:
             spec = spectrum.MsmsSpectrum.from_usi(usi)
@@ -112,9 +112,11 @@ def test_from_usi():
             assert spec.precursor_charge is not None
         except (ValueError, Exception) as e:
             # Some ProForma USIs may still fail due to external API issues
-            print(f"Warning: ProForma USI {usi} failed with {type(e).__name__}: {e}")
+            print(
+                f"Warning: ProForma USI {usi} failed with {type(e).__name__}: {e}"
+            )
             continue
-    
+
     # Test invalid backend
     with pytest.raises(ValueError):
         spectrum.MsmsSpectrum.from_usi(

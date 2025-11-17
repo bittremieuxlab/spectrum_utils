@@ -28,14 +28,16 @@ try:
 except (TypeError, AttributeError):
     # Newer version of pyteomics - try alternative approach
     try:
-        if hasattr(pyteomics.usi, 'register_proxi_backend'):
+        if hasattr(pyteomics.usi, "register_proxi_backend"):
             pyteomics.usi.register_proxi_backend("gnps", GnpsBackend)
         else:
             # Fallback: create aggregator with GNPS backend directly
             backends = {"gnps": GnpsBackend()}
-            if hasattr(pyteomics.usi, '_proxies'):
+            if hasattr(pyteomics.usi, "_proxies"):
                 backends.update(pyteomics.usi._proxies)
-            pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator(backends=backends)
+            pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator(
+                backends=backends
+            )
     except Exception:
         # If all else fails, use default aggregator without GNPS
         pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator()
