@@ -12,3 +12,6 @@ python:
         extra_requirements:
            - docs
            - iplot
+
+sphinx:
+  configuration: docs/src/conf.py
