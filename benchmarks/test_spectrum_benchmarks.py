@@ -55,7 +55,7 @@ def comparison_data():
     
     for size in sizes:
         mz = np.sort(np.random.uniform(100, 2000, size))
-        intensity = np.random.exponential(1000, size)
+        intensity = np.random.uniform(0, 1, size)
         datasets[f"size_{size}"] = {
             "identifier": f"comparison_spectrum_{size}",
             "precursor_mz": 500.0,
@@ -105,13 +105,13 @@ class TestSpectrumPerformance:
     def test_spectrum_filter_intensity_regular(self, benchmark, sample_data):
         """Benchmark intensity filtering on regular spectrum."""
         spectrum = MsmsSpectrum(**sample_data)
-        result = benchmark(spectrum.filter_intensity, min_intensity=100)
+        result = benchmark(spectrum.filter_intensity, min_intensity=0.01)
         assert result is not None
 
     def test_spectrum_filter_intensity_jit(self, benchmark, sample_data):
         """Benchmark intensity filtering on JIT spectrum."""
         spectrum = MsmsSpectrumJit(**sample_data)
-        result = benchmark(spectrum.filter_intensity, 100.0)
+        result = benchmark(spectrum.filter_intensity, 0.01)
         assert result is not None
 
     def test_spectrum_scale_intensity_regular(self, benchmark, sample_data):
@@ -174,7 +174,7 @@ class TestMemoryUsage:
         """Test memory usage of regular spectrum operations."""
         def create_and_process():
             spectrum = MsmsSpectrum(**sample_data)
-            spectrum = spectrum.filter_intensity(min_intensity=100)
+            spectrum = spectrum.filter_intensity(min_intensity=0.01)
             spectrum = spectrum.scale_intensity(scaling="root") 
             spectrum = spectrum.round(decimals=2)
             return spectrum
@@ -186,7 +186,7 @@ class TestMemoryUsage:
         """Test memory usage of JIT spectrum operations."""
         def create_and_process():
             spectrum = MsmsSpectrumJit(**sample_data)
-            spectrum = spectrum.filter_intensity(100.0)
+            spectrum = spectrum.filter_intensity(0.01)
             spectrum = spectrum.scale_intensity("root")
             spectrum = spectrum.round(2)
             return spectrum
