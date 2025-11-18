@@ -1,0 +1,136 @@
+name: Performance Benchmarks
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+    # Only run on performance-related changes
+    paths:
+      - 'spectrum_utils/**/*.py'
+      - 'benchmarks/**/*.py' 
+      - 'setup.cfg'
+      - 'pyproject.toml'
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ "3.10", "3.11", "3.12" ]
+        
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        # Fetch full history for benchmark comparisons
+        fetch-depth: 0
+        
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        pip install uv
+        uv pip install -e .[dev] --system
+        
+    - name: Run benchmarks
+      run: |
+        cd benchmarks
+        pytest test_spectrum_benchmarks.py --benchmark-only --benchmark-json=results_${{ matrix.python-version }}.json
+        
+    - name: Store benchmark results
+      uses: benchmark-action/github-action-benchmark@v1
+      if: github.ref == 'refs/heads/main'
+      with:
+        tool: 'pytest'
+        output-file-path: benchmarks/results_${{ matrix.python-version }}.json
+        # Store results in gh-pages branch
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        auto-push: true
+        comment-on-alert: true
+        alert-threshold: '200%'
+        fail-on-alert: false
+        
+    - name: Upload benchmark artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results-py${{ matrix.python-version }}
+        path: |
+          benchmarks/results_${{ matrix.python-version }}.json
+          benchmarks/*.html
+        retention-days: 30
+
+  benchmark-comparison:
+    runs-on: ubuntu-latest
+    needs: benchmark
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        
+    - name: Install dependencies
+      run: |
+        pip install uv
+        uv pip install -e .[dev] --system
+        
+    - name: Download previous benchmark results
+      uses: actions/download-artifact@v4
+      with:
+        name: benchmark-results-py3.11
+        path: benchmarks/
+        
+    - name: Run current benchmarks
+      run: |
+        cd benchmarks 
+        pytest test_spectrum_benchmarks.py --benchmark-only --benchmark-json=current_results.json
+        
+    - name: Compare benchmarks
+      run: |
+        cd benchmarks
+        # Compare current results with previous baseline
+        pytest-benchmark compare --group-by=name current_results.json results_3.11.json || true
+        
+    - name: Comment PR with benchmark results
+      uses: actions/github-script@v7
+      if: github.event_name == 'pull_request'
+      with:
+        script: |
+          const fs = require('fs');
+          try {
+            const resultsPath = 'benchmarks/current_results.json';
+            if (fs.existsSync(resultsPath)) {
+              const results = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
+              const benchmarks = results.benchmarks;
+              
+              let comment = '## 🚀 Performance Benchmark Results\\n\\n';
+              comment += '| Benchmark | Mean | Min | Max | Rounds |\\n';
+              comment += '|-----------|------|-----|-----|--------|\\n';
+              
+              benchmarks.forEach(b => {
+                const mean = (b.stats.mean * 1000).toFixed(3);
+                const min = (b.stats.min * 1000).toFixed(3);
+                const max = (b.stats.max * 1000).toFixed(3);
+                comment += `| ${b.name} | ${mean}ms | ${min}ms | ${max}ms | ${b.stats.rounds} |\\n`;
+              });
+              
+              comment += '\\n*Times are in milliseconds. Lower is better.*';
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
+          } catch (error) {
+            console.log('Could not post benchmark results:', error);
+          }
