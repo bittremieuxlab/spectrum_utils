@@ -1,0 +1,43 @@
+name: Build Documentation
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+    
+    - name: Install dependencies
+      run: |
+        pip install uv
+        uv pip install -e .[docs,iplot] --system
+    
+    - name: Build documentation
+      run: |
+        cd docs
+        make clean
+        make html
+    
+    - name: Check for documentation warnings/errors
+      run: |
+        cd docs
+        # Rebuild and capture output to check for warnings/errors
+        make clean
+        make html 2>&1 | tee build.log
+        # Fail if there are any warnings or errors
+        if grep -E "(WARNING|ERROR)" build.log; then
+          echo "❌ Documentation build contains warnings or errors!"
+          exit 1
+        else
+          echo "✅ Documentation build completed successfully with no warnings!"
+        fi
