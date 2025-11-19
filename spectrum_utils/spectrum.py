@@ -4,6 +4,7 @@ import copy
 import functools
 import logging
 import os
+import requests
 import sys
 import urllib.parse
 from typing import Dict, Iterable, Optional, Union
@@ -354,8 +355,6 @@ class MsmsSpectrum:
             precursor charge values can be provided using the `precursor_mz`
             and `precursor_charge` keyword arguments respectively.
         """
-        import requests
-
         # Prepare kwargs for pyteomics.usi.proxi call
         proxi_kwargs = kwargs.copy()
         if timeout is not None:
