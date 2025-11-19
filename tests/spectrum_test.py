@@ -1,3 +1,4 @@
+import logging
 import operator
 import os
 import pickle
@@ -7,6 +8,8 @@ import pytest
 from pyteomics import mass
 
 from spectrum_utils import fragment_annotation as fa, proforma, spectrum
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(autouse=True)
@@ -94,7 +97,7 @@ def test_from_usi():
         except (ValueError, Exception) as e:
             # Some USI may fail due to external API issues, but that's not our code's fault
             # We just skip them rather than fail the test
-            print(f"Warning: USI {usi} failed with {type(e).__name__}: {e}")
+            logger.warning(f"USI {usi} failed with {type(e).__name__}: {e}")
             continue
 
     # Ensure at least one USI was successfully parsed
