@@ -30,8 +30,9 @@ class GnpsBackend(pyteomics.usi._PROXIBackend):
 # Using the modern backends-based API (requires pyteomics>=4.6).
 # Skip registration during Sphinx documentation build to avoid import errors.
 if not (os.environ.get("SPHINX_BUILD") or "sphinx" in sys.modules):
-    pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator()
-    pyteomics.usi.AGGREGATOR.backends["gnps"] = GnpsBackend()
+    pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator(
+        backends={"gnps": GnpsBackend()}
+    )
     logger.debug("GNPS backend registered successfully")
 else:
     logger.debug(
@@ -301,7 +302,11 @@ class MsmsSpectrum:
 
     @classmethod
     def from_usi(
-        cls, usi: str, backend: str = "aggregator", **kwargs
+        cls,
+        usi: str,
+        backend: str = "aggregator",
+        timeout: Optional[float] = None,
+        **kwargs,
     ) -> "MsmsSpectrum":
         """
         Construct a spectrum from a public resource specified by its Universal
@@ -327,6 +332,9 @@ class MsmsSpectrum:
             The USI from which to generate the spectrum.
         backend : str
             PROXI host backend (default: 'aggregator').
+        timeout : Optional[float], optional
+            Timeout in seconds for network requests (default: None, uses
+            pyteomics default).
         kwargs
             Extra arguments to construct the spectrum that might be missing
             from the PROXI response (e.g. `precursor_mz` or `precursor_charge`)
@@ -346,9 +354,16 @@ class MsmsSpectrum:
             precursor charge values can be provided using the `precursor_mz`
             and `precursor_charge` keyword arguments respectively.
         """
+        import requests
+
+        # Prepare kwargs for pyteomics.usi.proxi call
+        proxi_kwargs = kwargs.copy()
+        if timeout is not None:
+            proxi_kwargs["timeout"] = timeout
+
         try:
             spectrum_dict = pyteomics.usi.proxi(
-                urllib.parse.quote_plus(usi), backend, **kwargs
+                urllib.parse.quote_plus(usi), backend, **proxi_kwargs
             )
         except KeyError as e:
             if "'value'" in str(e):
@@ -359,6 +374,19 @@ class MsmsSpectrum:
                 ) from e
             else:
                 raise
+        except (
+            requests.exceptions.Timeout,
+            requests.exceptions.ConnectionError,
+        ) as e:
+            raise ValueError(
+                f"Failed to retrieve spectrum for USI: {usi}. "
+                f"The request timed out or connection failed. "
+                f"This may be due to network issues or the PROXI server being unavailable. "
+                f"Original error: {e}"
+            ) from e
+        except Exception as e:
+            logger.warning(f"Unexpected error retrieving USI {usi}: {e}")
+            raise
         if "precursor_mz" not in kwargs:
             for attr in spectrum_dict["attributes"]:
                 if attr["accession"] in (
