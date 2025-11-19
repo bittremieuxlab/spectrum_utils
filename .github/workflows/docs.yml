@@ -46,5 +46,3 @@ jobs:
         else
           echo "✅ Documentation build completed successfully with no warnings!"
         fi
-      env:
-        SPHINX_BUILD: 1

@@ -3,9 +3,7 @@ from __future__ import annotations
 import copy
 import functools
 import logging
-import os
 import requests
-import sys
 import urllib.parse
 from typing import Dict, Iterable, Optional, Union
 
@@ -28,18 +26,9 @@ class GnpsBackend(pyteomics.usi._PROXIBackend):
 
 
 # Register GNPS backend with Pyteomics PROXI aggregator.
-# Using the modern backends-based API (requires pyteomics>=4.6).
-# Skip registration during Sphinx documentation build to avoid import errors.
-if not (os.environ.get("SPHINX_BUILD") or "sphinx" in sys.modules):
-    pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator(
-        backends={"gnps": GnpsBackend()}
-    )
-    logger.debug("GNPS backend registered successfully")
-else:
-    logger.debug(
-        "Skipping GNPS backend registration during documentation build"
-    )
-
+pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator(
+    backends={"gnps": GnpsBackend()}
+)
 
 @nb.experimental.jitclass
 class MsmsSpectrumJit:
