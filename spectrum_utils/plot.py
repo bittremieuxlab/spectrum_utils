@@ -297,10 +297,9 @@ def mass_errors(
 
     References
     ----------
-    Barsnes, H., Eidhammer, I. and Martens, L. (2010).
-    FragmentationAnalyzer: An open-source tool to analyze MS/MS
-    fragmentation data. PROTEOMICS, 10, 1087–1090.
-    doi:10.1002/pmic.200900681
+    Barsnes, H., Eidhammer, I. and Martens, L. FragmentationAnalyzer: An
+    open-source tool to analyze MS/MS fragmentation data. PROTEOMICS 10,
+    1087–1090 (2010). doi:10.1002/pmic.200900681
 
     """
     if ax is None:
