@@ -12,5 +12,5 @@ dependencies:
   - numpy
   - pandas
   - platformdirs
-  - pyteomics>=4.5
+  - pyteomics>=4.6
   - python>=3.10
