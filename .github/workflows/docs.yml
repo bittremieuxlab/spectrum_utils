@@ -20,8 +20,10 @@ jobs:
     - name: Install dependencies
       run: |
         pip install uv
-        uv pip install -e .[docs,iplot] --system
-        uv pip install --force-reinstall "pyteomics>=4.6" --system
+        pip cache purge || true
+        uv cache clean pyteomics || true
+        uv pip install "pyteomics>=4.6" --system --no-cache
+        uv pip install -e .[docs,iplot] --system --no-cache
     
     - name: Build documentation
       run: |
