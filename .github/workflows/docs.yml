@@ -20,6 +20,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install uv
+        uv pip install "pyteomics>=4.6" --system
         uv pip install -e .[docs,iplot] --system
     
     - name: Build documentation

@@ -26,6 +26,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install uv
+        uv pip install "pyteomics>=4.6" --system
         uv pip install pytest pytest-cov wheel --system
         uv pip install -e . --system
     - name: Run unit and system tests

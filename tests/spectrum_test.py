@@ -122,8 +122,8 @@ def test_from_usi():
             assert spec.precursor_charge is not None
         except (ValueError, Exception) as e:
             # Some ProForma USIs may still fail due to external API issues
-            print(
-                f"Warning: ProForma USI {usi} failed with {type(e).__name__}: {e}"
+            logger.warning(
+                f"ProForma USI {usi} failed with {type(e).__name__}: {e}"
             )
             continue
 
