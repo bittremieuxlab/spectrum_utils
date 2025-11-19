@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import copy
 import functools
+import json
 import logging
-import requests
+import socket
+import urllib.error
 import urllib.parse
 from typing import Dict, Iterable, Optional, Union
 
@@ -29,6 +31,7 @@ class GnpsBackend(pyteomics.usi._PROXIBackend):
 pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator(
     backends={"gnps": GnpsBackend()}
 )
+
 
 @nb.experimental.jitclass
 class MsmsSpectrumJit:
@@ -362,14 +365,32 @@ class MsmsSpectrum:
                 ) from e
             else:
                 raise
-        except (
-            requests.exceptions.Timeout,
-            requests.exceptions.ConnectionError,
-        ) as e:
+        except urllib.error.HTTPError as e:
             raise ValueError(
-                f"Failed to retrieve spectrum for USI: {usi}. "
-                f"The request timed out or connection failed. "
-                f"This may be due to network issues or the PROXI server being unavailable. "
+                f"HTTP error retrieving spectrum for USI: {usi}. "
+                f"Server responded with status {e.code}: {e.reason}. "
+                f"This may indicate the USI is invalid or the server is experiencing issues. "
+                f"Original error: {e}"
+            ) from e
+        except urllib.error.URLError as e:
+            raise ValueError(
+                f"Network error retrieving spectrum for USI: {usi}. "
+                f"Failed to connect to the PROXI server. "
+                f"This may be due to network connectivity issues or server unavailability. "
+                f"Original error: {e}"
+            ) from e
+        except (socket.timeout, TimeoutError) as e:
+            raise ValueError(
+                f"Timeout error retrieving spectrum for USI: {usi}. "
+                f"The request timed out waiting for a response from the PROXI server. "
+                f"This may be due to network issues or server overload. "
+                f"Original error: {e}"
+            ) from e
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Invalid JSON response from PROXI server for USI: {usi}. "
+                f"The server returned malformed JSON data. "
+                f"This appears to be an issue with the upstream PROXI API. "
                 f"Original error: {e}"
             ) from e
         except Exception as e:
