@@ -37,8 +37,7 @@ jobs:
         
     - name: Run benchmarks
       run: |
-        cd benchmarks
-        pytest test_spectrum_benchmarks.py --benchmark-only --benchmark-json=results_${{ matrix.python-version }}.json
+        pytest benchmarks/test_spectrum_benchmarks.py --benchmark-only --benchmark-json=benchmarks/results_${{ matrix.python-version }}.json
         
     - name: Store benchmark results
       uses: benchmark-action/github-action-benchmark@v1
@@ -84,20 +83,26 @@ jobs:
         
     - name: Download previous benchmark results
       uses: actions/download-artifact@v4
+      continue-on-error: true
       with:
         name: benchmark-results-py3.11
         path: benchmarks/
         
     - name: Run current benchmarks
+      working-directory: benchmarks
       run: |
-        cd benchmarks 
         pytest test_spectrum_benchmarks.py --benchmark-only --benchmark-json=current_results.json
         
     - name: Compare benchmarks
+      working-directory: benchmarks
       run: |
-        cd benchmarks
-        # Compare current results with previous baseline
-        pytest-benchmark compare --group-by=name current_results.json results_3.11.json || true
+        # Compare current results with previous baseline if it exists
+        if [ -f "results_3.11.json" ]; then
+          echo "Previous benchmark results found, performing comparison..."
+          pytest-benchmark compare --group-by=name current_results.json results_3.11.json || true
+        else
+          echo "No previous benchmark results found, skipping comparison."
+        fi
         
     - name: Comment PR with benchmark results
       uses: actions/github-script@v7
@@ -112,6 +117,13 @@ jobs:
               const benchmarks = results.benchmarks;
               
               let comment = '## 🚀 Performance Benchmark Results\\n\\n';
+              
+              // Check if previous results exist for comparison
+              const baselineExists = fs.existsSync('benchmarks/results_3.11.json');
+              if (!baselineExists) {
+                comment += '> **Note**: This is the first benchmark run - no baseline available for comparison.\\n\\n';
+              }
+              
               comment += '| Benchmark | Mean | Min | Max | Rounds |\\n';
               comment += '|-----------|------|-----|-----|--------|\\n';
               
