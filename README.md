@@ -1,9 +1,10 @@
 # spectrum_utils
 
-[![conda](https://img.shields.io/conda/vn/bioconda/spectrum_utils?color=green)](http://bioconda.github.io/recipes/spectrum_utils/README.html)
+[![conda](https://img.shields.io/conda/vn/bioconda/spectrum_utils?color=green)](https://bioconda.github.io/recipes/spectrum_utils/README.html)
 [![PyPI](https://img.shields.io/pypi/v/spectrum_utils?color=green)](https://pypi.org/project/spectrum_utils/)
-[![Build status](https://github.com/bittremieux/spectrum_utils/workflows/tests/badge.svg)](https://github.com/bittremieux/spectrum_utils/actions?query=workflow:tests)
-[![docs](https://readthedocs.org/projects/spectrum-utils/badge/?version=latest)](https://spectrum-utils.readthedocs.io/en/latest/?badge=latest)
+[![Tests](https://github.com/bittremieux/spectrum_utils/actions/workflows/tests.yml/badge.svg)](https://github.com/bittremieux/spectrum_utils/actions/workflows/tests.yml)
+[![Docs](https://github.com/bittremieux/spectrum_utils/actions/workflows/docs.yml/badge.svg)](https://github.com/bittremieux/spectrum_utils/actions/workflows/docs.yml)
+[![Documentation](https://readthedocs.org/projects/spectrum-utils/badge/?version=latest)](https://spectrum-utils.readthedocs.io/en/latest/?badge=latest)
 
 spectrum_utils is a Python package for efficient mass spectrometry data processing and visualization.
 

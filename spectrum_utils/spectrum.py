@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import copy
 import functools
+import json
+import logging
+import socket
+import urllib.error
 import urllib.parse
 from typing import Dict, Iterable, Optional, Union
 
@@ -10,6 +14,8 @@ import numpy as np
 import pyteomics.usi
 
 from spectrum_utils import fragment_annotation as fa, proforma, utils
+
+logger = logging.getLogger(__name__)
 
 
 class GnpsBackend(pyteomics.usi._PROXIBackend):
@@ -21,9 +27,10 @@ class GnpsBackend(pyteomics.usi._PROXIBackend):
         super(GnpsBackend, self).__init__("GNPS", self._url_template, **kwargs)
 
 
-# Reload the Pyteomics PROXI aggregator to also include GNPS.
-pyteomics.usi._proxies["gnps"] = GnpsBackend
-pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator()
+# Register GNPS backend with Pyteomics PROXI aggregator.
+pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator(
+    backends={"gnps": GnpsBackend()}
+)
 
 
 @nb.experimental.jitclass
@@ -288,7 +295,11 @@ class MsmsSpectrum:
 
     @classmethod
     def from_usi(
-        cls, usi: str, backend: str = "aggregator", **kwargs
+        cls,
+        usi: str,
+        backend: str = "aggregator",
+        timeout: Optional[float] = None,
+        **kwargs,
     ) -> "MsmsSpectrum":
         """
         Construct a spectrum from a public resource specified by its Universal
@@ -314,6 +325,9 @@ class MsmsSpectrum:
             The USI from which to generate the spectrum.
         backend : str
             PROXI host backend (default: 'aggregator').
+        timeout : Optional[float], optional
+            Timeout in seconds for network requests (default: None, uses
+            pyteomics default).
         kwargs
             Extra arguments to construct the spectrum that might be missing
             from the PROXI response (e.g. `precursor_mz` or `precursor_charge`)
@@ -333,9 +347,55 @@ class MsmsSpectrum:
             precursor charge values can be provided using the `precursor_mz`
             and `precursor_charge` keyword arguments respectively.
         """
-        spectrum_dict = pyteomics.usi.proxi(
-            urllib.parse.quote_plus(usi), backend, **kwargs
-        )
+        # Prepare kwargs for pyteomics.usi.proxi call
+        proxi_kwargs = kwargs.copy()
+        if timeout is not None:
+            proxi_kwargs["timeout"] = timeout
+
+        try:
+            spectrum_dict = pyteomics.usi.proxi(
+                urllib.parse.quote_plus(usi), backend, **proxi_kwargs
+            )
+        except KeyError as e:
+            if "'value'" in str(e):
+                raise ValueError(
+                    f"Invalid USI response format from PROXI server for USI: {usi}. "
+                    f"This appears to be an issue with the upstream PROXI API or pyteomics library. "
+                    f"Original error: {e}"
+                ) from e
+            else:
+                raise
+        except urllib.error.HTTPError as e:
+            raise ValueError(
+                f"HTTP error retrieving spectrum for USI: {usi}. "
+                f"Server responded with status {e.code}: {e.reason}. "
+                f"This may indicate the USI is invalid or the server is experiencing issues. "
+                f"Original error: {e}"
+            ) from e
+        except urllib.error.URLError as e:
+            raise ValueError(
+                f"Network error retrieving spectrum for USI: {usi}. "
+                f"Failed to connect to the PROXI server. "
+                f"This may be due to network connectivity issues or server unavailability. "
+                f"Original error: {e}"
+            ) from e
+        except (socket.timeout, TimeoutError) as e:
+            raise ValueError(
+                f"Timeout error retrieving spectrum for USI: {usi}. "
+                f"The request timed out waiting for a response from the PROXI server. "
+                f"This may be due to network issues or server overload. "
+                f"Original error: {e}"
+            ) from e
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Invalid JSON response from PROXI server for USI: {usi}. "
+                f"The server returned malformed JSON data. "
+                f"This appears to be an issue with the upstream PROXI API. "
+                f"Original error: {e}"
+            ) from e
+        except Exception as e:
+            logger.warning(f"Unexpected error retrieving USI {usi}: {e}")
+            raise
         if "precursor_mz" not in kwargs:
             for attr in spectrum_dict["attributes"]:
                 if attr["accession"] in (

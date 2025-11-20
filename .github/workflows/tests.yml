@@ -26,6 +26,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install uv
+        uv pip install "pyteomics>=4.6" --system
         uv pip install pytest pytest-cov wheel --system
         uv pip install -e . --system
     - name: Run unit and system tests
@@ -33,7 +34,8 @@ jobs:
         pytest --cov=spectrum_utils --verbose tests/
     - name: Upload coverage to codecov
       uses: codecov/codecov-action@v4
+      continue-on-error: true
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        fail_ci_if_error: true
+        fail_ci_if_error: false
         verbose: true
