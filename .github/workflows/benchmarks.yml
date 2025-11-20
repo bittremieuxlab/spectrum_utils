@@ -121,25 +121,25 @@ jobs:
               const results = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
               const benchmarks = results.benchmarks;
               
-              let comment = '## 🚀 Performance Benchmark Results\\n\\n';
+              let comment = '## 🚀 Performance Benchmark Results\n\n';
               
               // Check if previous results exist for comparison
               const baselineExists = fs.existsSync('benchmarks/results_3.11.json');
               if (!baselineExists) {
-                comment += '> **Note**: This is the first benchmark run - no baseline available for comparison.\\n\\n';
+                comment += '> **Note**: This is the first benchmark run - no baseline available for comparison.\n\n';
               }
               
-              comment += '| Benchmark | Mean | Min | Max | Rounds |\\n';
-              comment += '|-----------|------|-----|-----|--------|\\n';
+              comment += '| Benchmark | Mean | Min | Max | Rounds |\n';
+              comment += '|-----------|------|-----|-----|--------|\n';
               
               benchmarks.forEach(b => {
                 const mean = (b.stats.mean * 1000).toFixed(3);
                 const min = (b.stats.min * 1000).toFixed(3);
                 const max = (b.stats.max * 1000).toFixed(3);
-                comment += `| ${b.name} | ${mean}ms | ${min}ms | ${max}ms | ${b.stats.rounds} |\\n`;
+                comment += `| ${b.name} | ${mean}ms | ${min}ms | ${max}ms | ${b.stats.rounds} |\n`;
               });
               
-              comment += '\\n*Times are in milliseconds. Lower is better.*';
+              comment += '\n*Times are in milliseconds. Lower is better.*';
               
               github.rest.issues.createComment({
                 issue_number: context.issue.number,
