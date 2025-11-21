@@ -106,86 +106,83 @@ class TestSpectrumPerformance:
 
     def test_spectrum_round_regular(self, benchmark, sample_data):
         """Benchmark rounding operation on regular spectrum."""
-        spectrums = [MsmsSpectrum(**sample_data) for _ in range(50)]
-        idx = [0]
 
-        def round_spectrum():
-            result = spectrums[idx[0]].round(decimals=2)
-            idx[0] += 1
-            return result
+        def setup():
+            return (MsmsSpectrum(**sample_data),), {}
 
-        result = benchmark.pedantic(round_spectrum, rounds=50, iterations=1)
+        result = benchmark.pedantic(
+            lambda s: s.round(decimals=2), setup=setup, rounds=50, iterations=1
+        )
         assert result is not None
 
     def test_spectrum_round_jit(self, benchmark, sample_data):
         """Benchmark rounding operation on JIT spectrum."""
         _ = MsmsSpectrumJit(**sample_data).round(2)
 
-        spectrums = [MsmsSpectrumJit(**sample_data) for _ in range(50)]
-        idx = [0]
+        def setup():
+            return (MsmsSpectrumJit(**sample_data),), {}
 
-        def round_spectrum():
-            result = spectrums[idx[0]].round(2)
-            idx[0] += 1
-            return result
-
-        result = benchmark.pedantic(round_spectrum, rounds=50, iterations=1)
+        result = benchmark.pedantic(
+            lambda s: s.round(2), setup=setup, rounds=50, iterations=1
+        )
         assert result is not None
 
     def test_spectrum_filter_intensity_regular(self, benchmark, sample_data):
         """Benchmark intensity filtering on regular spectrum."""
-        spectrums = [MsmsSpectrum(**sample_data) for _ in range(50)]
-        idx = [0]
 
-        def filter_spectrum():
-            result = spectrums[idx[0]].filter_intensity(min_intensity=0.01)
-            idx[0] += 1
-            return result
+        def setup():
+            return (MsmsSpectrum(**sample_data),), {}
 
-        result = benchmark.pedantic(filter_spectrum, rounds=50, iterations=1)
+        result = benchmark.pedantic(
+            lambda s: s.filter_intensity(min_intensity=0.01),
+            setup=setup,
+            rounds=50,
+            iterations=1,
+        )
         assert result is not None
 
     def test_spectrum_filter_intensity_jit(self, benchmark, sample_data):
         """Benchmark intensity filtering on JIT spectrum."""
         _ = MsmsSpectrumJit(**sample_data).filter_intensity(0.01)
 
-        spectrums = [MsmsSpectrumJit(**sample_data) for _ in range(50)]
-        idx = [0]
+        def setup():
+            return (MsmsSpectrumJit(**sample_data),), {}
 
-        def filter_spectrum():
-            result = spectrums[idx[0]].filter_intensity(0.01)
-            idx[0] += 1
-            return result
-
-        result = benchmark.pedantic(filter_spectrum, rounds=50, iterations=1)
+        result = benchmark.pedantic(
+            lambda s: s.filter_intensity(0.01),
+            setup=setup,
+            rounds=50,
+            iterations=1,
+        )
         assert result is not None
 
     def test_spectrum_scale_intensity_regular(self, benchmark, sample_data):
         """Benchmark intensity scaling on regular spectrum."""
-        spectrums = [MsmsSpectrum(**sample_data) for _ in range(50)]
-        idx = [0]
 
-        def scale_spectrum():
-            result = spectrums[idx[0]].scale_intensity(scaling="root")
-            idx[0] += 1
-            return result
+        def setup():
+            return (MsmsSpectrum(**sample_data),), {}
 
-        result = benchmark.pedantic(scale_spectrum, rounds=50, iterations=1)
+        result = benchmark.pedantic(
+            lambda s: s.scale_intensity(scaling="root"),
+            setup=setup,
+            rounds=50,
+            iterations=1,
+        )
         assert result is not None
 
     def test_spectrum_scale_intensity_jit(self, benchmark, sample_data):
         """Benchmark intensity scaling on JIT spectrum."""
         _ = MsmsSpectrumJit(**sample_data).scale_intensity("root")
 
-        spectrums = [MsmsSpectrumJit(**sample_data) for _ in range(50)]
-        idx = [0]
+        def setup():
+            return (MsmsSpectrumJit(**sample_data),), {}
 
-        def scale_spectrum():
-            result = spectrums[idx[0]].scale_intensity("root")
-            idx[0] += 1
-            return result
-
-        result = benchmark.pedantic(scale_spectrum, rounds=50, iterations=1)
+        result = benchmark.pedantic(
+            lambda s: s.scale_intensity("root"),
+            setup=setup,
+            rounds=50,
+            iterations=1,
+        )
         assert result is not None
 
 
