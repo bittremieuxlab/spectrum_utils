@@ -39,10 +39,16 @@ jobs:
         uv pip install -e .[dev] --system
         
     - name: Run benchmarks on PR branch
+      env:
+        NUMBA_CACHE_DIR: /tmp/numba_cache_pr
       run: |
-        pytest benchmarks/test_spectrum_benchmarks.py --benchmark-only --benchmark-json=benchmarks/pr_results.json
+        # Use a new Python process to avoid Numba JIT cache contamination
+        # Set NUMBA_CACHE_DIR to ensure separate cache for PR benchmarks
+        python -m pytest benchmarks/test_spectrum_benchmarks.py --benchmark-only --benchmark-json=benchmarks/pr_results.json
         
     - name: Checkout main branch source code and run benchmarks
+      env:
+        NUMBA_CACHE_DIR: /tmp/numba_cache_main
       run: |
         # Save the current spectrum_utils source code
         mv spectrum_utils spectrum_utils_pr
@@ -51,12 +57,17 @@ jobs:
         if git checkout origin/main -- spectrum_utils 2>/dev/null; then
           echo "Successfully checked out main branch source code"
           
-          # Reinstall with main branch code
+          # Reinstall with main branch code (this clears Python import caches)
           pip uninstall -y spectrum_utils
           pip install -e . --no-deps
           
-          # Run benchmarks on main branch code (using PR's benchmark tests)
-          pytest benchmarks/test_spectrum_benchmarks.py --benchmark-only --benchmark-json=benchmarks/main_results.json
+          # Clear Python cache to force fresh imports
+          find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+          find . -type f -name "*.pyc" -delete 2>/dev/null || true
+          
+          # Run benchmarks in a completely new Python process with separate Numba cache
+          # This ensures Numba JIT cache cannot contaminate results
+          python -m pytest benchmarks/test_spectrum_benchmarks.py --benchmark-only --benchmark-json=benchmarks/main_results.json
           
           # Restore PR branch source code
           rm -rf spectrum_utils
