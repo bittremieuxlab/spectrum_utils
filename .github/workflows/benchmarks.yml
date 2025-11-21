@@ -107,10 +107,10 @@ jobs:
               comment += '|-----------|-----------|----------|----------|--------|\n';
               
               prResults.benchmarks.forEach(b => {
-                const mean = (b.stats.mean * 1000).toFixed(3);
+                const median = (b.stats.median * 1000).toFixed(3);
                 const min = (b.stats.min * 1000).toFixed(3);
                 const max = (b.stats.max * 1000).toFixed(3);
-                comment += `| ${b.name} | ${mean} | ${min} | ${max} | ${b.stats.rounds} |\n`;
+                comment += `| ${b.name} | ${median} | ${min} | ${max} | ${b.stats.rounds} |\n`;
               });
               
               comment += '\n*Lower times are better.*';
@@ -121,7 +121,7 @@ jobs:
               // Create a map of main results by benchmark name
               const mainMap = {};
               mainResults.benchmarks.forEach(b => {
-                mainMap[b.name] = b.stats.mean;
+                mainMap[b.name] = b.stats.median;
               });
               
               // Calculate comparisons
@@ -134,13 +134,13 @@ jobs:
               comment += '|-----------|---------|-----------|--------|----------|--------|--------|\n';
               
               prResults.benchmarks.forEach(prBench => {
-                const prMean = prBench.stats.mean * 1000; // Convert to ms
-                const mainMean = mainMap[prBench.name] ? mainMap[prBench.name] * 1000 : null;
+                const prMedian = prBench.stats.median * 1000; // Convert to ms
+                const mainMedian = mainMap[prBench.name] ? mainMap[prBench.name] * 1000 : null;
                 const rounds = prBench.stats.rounds;
                 
-                if (mainMean) {
-                  const delta = prMean - mainMean;
-                  const changePercent = ((delta / mainMean) * 100);
+                if (mainMedian) {
+                  const delta = prMedian - mainMedian;
+                  const changePercent = ((delta / mainMedian) * 100);
                   
                   let status = '';
                   if (Math.abs(changePercent) < THRESHOLD * 100) {
@@ -154,10 +154,10 @@ jobs:
                     regressions++;
                   }
                   
-                  comment += `| ${prBench.name} | ${prMean.toFixed(3)} | ${mainMean.toFixed(3)} | ${delta >= 0 ? '+' : ''}${delta.toFixed(3)} | ${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}% | ${rounds} | ${status} |\n`;
+                  comment += `| ${prBench.name} | ${prMedian.toFixed(3)} | ${mainMedian.toFixed(3)} | ${delta >= 0 ? '+' : ''}${delta.toFixed(3)} | ${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}% | ${rounds} | ${status} |\n`;
                 } else {
                   // New benchmark not in main
-                  comment += `| ${prBench.name} | ${prMean.toFixed(3)} | — | — | — | ${rounds} | 🆕 New |\n`;
+                  comment += `| ${prBench.name} | ${prMedian.toFixed(3)} | — | — | — | ${rounds} | 🆕 New |\n`;
                 }
               });
               
