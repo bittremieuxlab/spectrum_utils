@@ -109,78 +109,84 @@ class TestSpectrumPerformance:
     def test_spectrum_round_regular(self, benchmark, sample_data):
         """Benchmark rounding operation on regular spectrum."""
 
-        def round_fresh_spectrum():
-            spectrum = MsmsSpectrum(**sample_data)
-            return spectrum.round(decimals=2)
+        def setup():
+            return (MsmsSpectrum(**sample_data),), {}
 
         result = benchmark.pedantic(
-            round_fresh_spectrum, rounds=50, iterations=1
+            lambda s: s.round(decimals=2), setup=setup, rounds=50, iterations=1
         )
         assert result is not None
 
     def test_spectrum_round_jit(self, benchmark, sample_data):
         """Benchmark rounding operation on JIT spectrum."""
-        # Warm up JIT compilation on a separate instance
+        # Warm up JIT compilation
         _ = MsmsSpectrumJit(**sample_data).round(2)
 
-        def round_fresh_spectrum():
-            spectrum = MsmsSpectrumJit(**sample_data)
-            return spectrum.round(2)
+        def setup():
+            return (MsmsSpectrumJit(**sample_data),), {}
 
         result = benchmark.pedantic(
-            round_fresh_spectrum, rounds=50, iterations=1
+            lambda s: s.round(2), setup=setup, rounds=50, iterations=1
         )
         assert result is not None
 
     def test_spectrum_filter_intensity_regular(self, benchmark, sample_data):
         """Benchmark intensity filtering on regular spectrum."""
 
-        def filter_fresh_spectrum():
-            spectrum = MsmsSpectrum(**sample_data)
-            return spectrum.filter_intensity(min_intensity=0.01)
+        def setup():
+            return (MsmsSpectrum(**sample_data),), {}
 
         result = benchmark.pedantic(
-            filter_fresh_spectrum, rounds=50, iterations=1
+            lambda s: s.filter_intensity(min_intensity=0.01),
+            setup=setup,
+            rounds=50,
+            iterations=1,
         )
         assert result is not None
 
     def test_spectrum_filter_intensity_jit(self, benchmark, sample_data):
         """Benchmark intensity filtering on JIT spectrum."""
-        # Warm up JIT compilation on a separate instance
+        # Warm up JIT compilation
         _ = MsmsSpectrumJit(**sample_data).filter_intensity(0.01)
 
-        def filter_fresh_spectrum():
-            spectrum = MsmsSpectrumJit(**sample_data)
-            return spectrum.filter_intensity(0.01)
+        def setup():
+            return (MsmsSpectrumJit(**sample_data),), {}
 
         result = benchmark.pedantic(
-            filter_fresh_spectrum, rounds=50, iterations=1
+            lambda s: s.filter_intensity(0.01),
+            setup=setup,
+            rounds=50,
+            iterations=1,
         )
         assert result is not None
 
     def test_spectrum_scale_intensity_regular(self, benchmark, sample_data):
         """Benchmark intensity scaling on regular spectrum."""
 
-        def scale_fresh_spectrum():
-            spectrum = MsmsSpectrum(**sample_data)
-            return spectrum.scale_intensity(scaling="root")
+        def setup():
+            return (MsmsSpectrum(**sample_data),), {}
 
         result = benchmark.pedantic(
-            scale_fresh_spectrum, rounds=50, iterations=1
+            lambda s: s.scale_intensity(scaling="root"),
+            setup=setup,
+            rounds=50,
+            iterations=1,
         )
         assert result is not None
 
     def test_spectrum_scale_intensity_jit(self, benchmark, sample_data):
         """Benchmark intensity scaling on JIT spectrum."""
-        # Warm up JIT compilation on a separate instance
+        # Warm up JIT compilation
         _ = MsmsSpectrumJit(**sample_data).scale_intensity("root")
 
-        def scale_fresh_spectrum():
-            spectrum = MsmsSpectrumJit(**sample_data)
-            return spectrum.scale_intensity("root")
+        def setup():
+            return (MsmsSpectrumJit(**sample_data),), {}
 
         result = benchmark.pedantic(
-            scale_fresh_spectrum, rounds=50, iterations=1
+            lambda s: s.scale_intensity("root"),
+            setup=setup,
+            rounds=50,
+            iterations=1,
         )
         assert result is not None
 
