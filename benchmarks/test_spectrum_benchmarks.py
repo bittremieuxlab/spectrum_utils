@@ -79,7 +79,7 @@ class TestSpectrumPerformance:
         """Benchmark JIT MsmsSpectrum creation."""
         # Warm up JIT compilation
         _ = MsmsSpectrumJit(**sample_data)
-        
+
         result = benchmark(MsmsSpectrumJit, **sample_data)
         assert len(result.mz) == len(sample_data["mz"])
 
@@ -94,7 +94,7 @@ class TestSpectrumPerformance:
         """Benchmark JIT MsmsSpectrum creation with large data."""
         # Warm up JIT compilation
         _ = MsmsSpectrumJit(**large_sample_data)
-        
+
         result = benchmark(MsmsSpectrumJit, **large_sample_data)
         assert len(result.mz) == len(large_sample_data["mz"])
 
@@ -109,7 +109,7 @@ class TestSpectrumPerformance:
         spectrum = MsmsSpectrumJit(**sample_data)
         # Warm up JIT compilation
         _ = spectrum.round(2)
-        
+
         result = benchmark(spectrum.round, 2)
         assert result is not None
 
@@ -124,7 +124,7 @@ class TestSpectrumPerformance:
         spectrum = MsmsSpectrumJit(**sample_data)
         # Warm up JIT compilation
         _ = spectrum.filter_intensity(0.01)
-        
+
         result = benchmark(spectrum.filter_intensity, 0.01)
         assert result is not None
 
@@ -139,7 +139,7 @@ class TestSpectrumPerformance:
         spectrum = MsmsSpectrumJit(**sample_data)
         # Warm up JIT compilation
         _ = spectrum.scale_intensity("root")
-        
+
         result = benchmark(spectrum.scale_intensity, "root")
         assert result is not None
 
@@ -173,7 +173,7 @@ class TestSpectrumComparison:
 
         benchmark.extra_info["spectrum_size"] = size
         benchmark.extra_info["implementation"] = "jit"
-        
+
         # Warm up JIT compilation
         _ = MsmsSpectrumJit(**data)
 
@@ -203,7 +203,7 @@ class TestMemoryUsage:
 
     def test_memory_efficiency_jit(self, benchmark, sample_data):
         """Test memory usage of JIT spectrum operations."""
-        
+
         # Warm up JIT compilation for all operations
         warmup_spectrum = MsmsSpectrumJit(**sample_data)
         _ = warmup_spectrum.filter_intensity(0.01)
