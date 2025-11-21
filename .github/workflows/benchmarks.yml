@@ -1,0 +1,185 @@
+name: Performance Benchmarks
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+    # Only run on performance-related changes
+    paths:
+      - 'spectrum_utils/**/*.py'
+      - 'benchmarks/**/*.py' 
+      - 'setup.cfg'
+      - 'pyproject.toml'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  benchmark-comparison:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        # Fetch full history to access main branch
+        fetch-depth: 0
+        
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        
+    - name: Install dependencies
+      run: |
+        pip install uv
+        uv pip install -e .[dev] --system
+        
+    - name: Run benchmarks on PR branch
+      env:
+        NUMBA_CACHE_DIR: /tmp/numba_cache_pr
+      run: |
+        # Use a new Python process to avoid Numba JIT cache contamination
+        # Set NUMBA_CACHE_DIR to ensure separate cache for PR benchmarks
+        python -m pytest benchmarks/test_spectrum_benchmarks.py --benchmark-only --benchmark-json=benchmarks/pr_results.json
+        
+    - name: Checkout main branch source code and run benchmarks
+      env:
+        NUMBA_CACHE_DIR: /tmp/numba_cache_main
+      run: |
+        # Save the current spectrum_utils source code
+        mv spectrum_utils spectrum_utils_pr
+        
+        # Checkout only the spectrum_utils directory from main branch
+        if git checkout origin/main -- spectrum_utils 2>/dev/null; then
+          echo "Successfully checked out main branch source code"
+          
+          # Reinstall with main branch code (this clears Python import caches)
+          pip uninstall -y spectrum_utils
+          pip install -e . --no-deps
+          
+          # Clear Python cache to force fresh imports
+          find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+          find . -type f -name "*.pyc" -delete 2>/dev/null || true
+          
+          # Run benchmarks in a completely new Python process with separate Numba cache
+          # This ensures Numba JIT cache cannot contaminate results
+          python -m pytest benchmarks/test_spectrum_benchmarks.py --benchmark-only --benchmark-json=benchmarks/main_results.json
+          
+          # Restore PR branch source code
+          rm -rf spectrum_utils
+          mv spectrum_utils_pr spectrum_utils
+          
+          # Reinstall with PR code
+          pip uninstall -y spectrum_utils
+          pip install -e . --no-deps
+        else
+          echo "Could not checkout main branch source code, skipping comparison"
+          # Restore PR code
+          mv spectrum_utils_pr spectrum_utils
+          # Create empty main results to signal no comparison available
+          echo '{"benchmarks": []}' > benchmarks/main_results.json
+        fi
+        
+    - name: Comment PR with benchmark comparison
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          try {
+            // Load both result files
+            const prResults = JSON.parse(fs.readFileSync('benchmarks/pr_results.json', 'utf8'));
+            const mainResults = JSON.parse(fs.readFileSync('benchmarks/main_results.json', 'utf8'));
+            
+            // Check if main results are available
+            const hasMainResults = mainResults.benchmarks && mainResults.benchmarks.length > 0;
+            
+            let comment = '## 🚀 Performance Benchmark Results (Python 3.11)\n\n';
+            
+            if (!hasMainResults) {
+              // No comparison available - just show PR results
+              comment += '> **Note**: Could not compare with main branch. Showing PR results only.\n\n';
+              comment += '| Benchmark | Time (ms) | Min (ms) | Max (ms) | Rounds |\n';
+              comment += '|-----------|-----------|----------|----------|--------|\n';
+              
+              prResults.benchmarks.forEach(b => {
+                const median = (b.stats.median * 1000).toFixed(3);
+                const min = (b.stats.min * 1000).toFixed(3);
+                const max = (b.stats.max * 1000).toFixed(3);
+                comment += `| ${b.name} | ${median} | ${min} | ${max} | ${b.stats.rounds} |\n`;
+              });
+              
+              comment += '\n*Lower times are better.*';
+            } else {
+              // Full comparison available
+              comment += '**Comparing PR branch vs main branch**\n\n';
+              
+              // Create a map of main results by benchmark name
+              const mainMap = {};
+              mainResults.benchmarks.forEach(b => {
+                mainMap[b.name] = b.stats.median;
+              });
+              
+              // Calculate comparisons
+              const THRESHOLD = 0.05; // 5% threshold for meaningful changes
+              let improvements = 0;
+              let regressions = 0;
+              let unchanged = 0;
+              
+              comment += '| Benchmark | PR (ms) | Main (ms) | Δ (ms) | Change % | Rounds | Status |\n';
+              comment += '|-----------|---------|-----------|--------|----------|--------|--------|\n';
+              
+              prResults.benchmarks.forEach(prBench => {
+                const prMedian = prBench.stats.median * 1000; // Convert to ms
+                const mainMedian = mainMap[prBench.name] ? mainMap[prBench.name] * 1000 : null;
+                const rounds = prBench.stats.rounds;
+                
+                if (mainMedian) {
+                  const delta = prMedian - mainMedian;
+                  const changePercent = ((delta / mainMedian) * 100);
+                  
+                  let status = '';
+                  if (Math.abs(changePercent) < THRESHOLD * 100) {
+                    status = '—';
+                    unchanged++;
+                  } else if (delta < 0) {
+                    status = `✅ ${Math.abs(changePercent).toFixed(1)}% faster`;
+                    improvements++;
+                  } else {
+                    status = `⚠️ ${changePercent.toFixed(1)}% slower`;
+                    regressions++;
+                  }
+                  
+                  comment += `| ${prBench.name} | ${prMedian.toFixed(3)} | ${mainMedian.toFixed(3)} | ${delta >= 0 ? '+' : ''}${delta.toFixed(3)} | ${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}% | ${rounds} | ${status} |\n`;
+                } else {
+                  // New benchmark not in main
+                  comment += `| ${prBench.name} | ${prMedian.toFixed(3)} | — | — | — | ${rounds} | 🆕 New |\n`;
+                }
+              });
+              
+              // Add summary
+              comment += '\n### Summary\n\n';
+              if (improvements > 0 || regressions > 0 || unchanged > 0) {
+                comment += `- ✅ **${improvements}** improvement${improvements !== 1 ? 's' : ''} (>5% faster)\n`;
+                comment += `- ⚠️ **${regressions}** regression${regressions !== 1 ? 's' : ''} (>5% slower)\n`;
+                comment += `- **${unchanged}** unchanged (within ±5%)\n`;
+              }
+              
+              comment += '\n*Changes smaller than ±5% are not considered significant.*\n';
+              comment += '*Lower times are better.*';
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          } catch (error) {
+            console.log('Could not post benchmark results:', error);
+            console.log(error.stack);
+          }
