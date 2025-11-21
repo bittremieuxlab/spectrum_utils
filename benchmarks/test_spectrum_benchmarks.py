@@ -77,6 +77,9 @@ class TestSpectrumPerformance:
 
     def test_spectrum_creation_jit(self, benchmark, sample_data):
         """Benchmark JIT MsmsSpectrum creation."""
+        # Warm up JIT compilation
+        _ = MsmsSpectrumJit(**sample_data)
+        
         result = benchmark(MsmsSpectrumJit, **sample_data)
         assert len(result.mz) == len(sample_data["mz"])
 
@@ -89,6 +92,9 @@ class TestSpectrumPerformance:
 
     def test_spectrum_creation_large_jit(self, benchmark, large_sample_data):
         """Benchmark JIT MsmsSpectrum creation with large data."""
+        # Warm up JIT compilation
+        _ = MsmsSpectrumJit(**large_sample_data)
+        
         result = benchmark(MsmsSpectrumJit, **large_sample_data)
         assert len(result.mz) == len(large_sample_data["mz"])
 
@@ -101,6 +107,9 @@ class TestSpectrumPerformance:
     def test_spectrum_round_jit(self, benchmark, sample_data):
         """Benchmark rounding operation on JIT spectrum."""
         spectrum = MsmsSpectrumJit(**sample_data)
+        # Warm up JIT compilation
+        _ = spectrum.round(2)
+        
         result = benchmark(spectrum.round, 2)
         assert result is not None
 
@@ -113,6 +122,9 @@ class TestSpectrumPerformance:
     def test_spectrum_filter_intensity_jit(self, benchmark, sample_data):
         """Benchmark intensity filtering on JIT spectrum."""
         spectrum = MsmsSpectrumJit(**sample_data)
+        # Warm up JIT compilation
+        _ = spectrum.filter_intensity(0.01)
+        
         result = benchmark(spectrum.filter_intensity, 0.01)
         assert result is not None
 
@@ -125,6 +137,9 @@ class TestSpectrumPerformance:
     def test_spectrum_scale_intensity_jit(self, benchmark, sample_data):
         """Benchmark intensity scaling on JIT spectrum."""
         spectrum = MsmsSpectrumJit(**sample_data)
+        # Warm up JIT compilation
+        _ = spectrum.scale_intensity("root")
+        
         result = benchmark(spectrum.scale_intensity, "root")
         assert result is not None
 
@@ -142,9 +157,9 @@ class TestSpectrumComparison:
         # This will show in benchmark results which size is being tested
         benchmark.extra_info["spectrum_size"] = size
 
-        # Benchmark regular spectrum creation
+        # Benchmark regular spectrum creation with more rounds
         regular_result = benchmark.pedantic(
-            MsmsSpectrum, kwargs=data, rounds=10, iterations=1
+            MsmsSpectrum, kwargs=data, rounds=50, iterations=1
         )
 
         assert len(regular_result.mz) == size
@@ -158,10 +173,13 @@ class TestSpectrumComparison:
 
         benchmark.extra_info["spectrum_size"] = size
         benchmark.extra_info["implementation"] = "jit"
+        
+        # Warm up JIT compilation
+        _ = MsmsSpectrumJit(**data)
 
-        # Benchmark JIT spectrum creation
+        # Benchmark JIT spectrum creation with more rounds
         jit_result = benchmark.pedantic(
-            MsmsSpectrumJit, kwargs=data, rounds=10, iterations=1
+            MsmsSpectrumJit, kwargs=data, rounds=50, iterations=1
         )
 
         assert len(jit_result.mz) == size
@@ -185,6 +203,12 @@ class TestMemoryUsage:
 
     def test_memory_efficiency_jit(self, benchmark, sample_data):
         """Test memory usage of JIT spectrum operations."""
+        
+        # Warm up JIT compilation for all operations
+        warmup_spectrum = MsmsSpectrumJit(**sample_data)
+        _ = warmup_spectrum.filter_intensity(0.01)
+        _ = warmup_spectrum.scale_intensity("root")
+        _ = warmup_spectrum.round(2)
 
         def create_and_process():
             spectrum = MsmsSpectrumJit(**sample_data)

@@ -119,12 +119,13 @@ jobs:
               let regressions = 0;
               let unchanged = 0;
               
-              comment += '| Benchmark | PR (ms) | Main (ms) | Δ (ms) | Change % | Status |\n';
-              comment += '|-----------|---------|-----------|--------|----------|--------|\n';
+              comment += '| Benchmark | PR (ms) | Main (ms) | Δ (ms) | Change % | Rounds | Status |\n';
+              comment += '|-----------|---------|-----------|--------|----------|--------|--------|\n';
               
               prResults.benchmarks.forEach(prBench => {
                 const prMean = prBench.stats.mean * 1000; // Convert to ms
                 const mainMean = mainMap[prBench.name] ? mainMap[prBench.name] * 1000 : null;
+                const rounds = prBench.stats.rounds;
                 
                 if (mainMean) {
                   const delta = prMean - mainMean;
@@ -142,10 +143,10 @@ jobs:
                     regressions++;
                   }
                   
-                  comment += `| ${prBench.name} | ${prMean.toFixed(3)} | ${mainMean.toFixed(3)} | ${delta >= 0 ? '+' : ''}${delta.toFixed(3)} | ${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}% | ${status} |\n`;
+                  comment += `| ${prBench.name} | ${prMean.toFixed(3)} | ${mainMean.toFixed(3)} | ${delta >= 0 ? '+' : ''}${delta.toFixed(3)} | ${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}% | ${rounds} | ${status} |\n`;
                 } else {
                   // New benchmark not in main
-                  comment += `| ${prBench.name} | ${prMean.toFixed(3)} | — | — | — | 🆕 New |\n`;
+                  comment += `| ${prBench.name} | ${prMean.toFixed(3)} | — | — | — | ${rounds} | 🆕 New |\n`;
                 }
               });
               
