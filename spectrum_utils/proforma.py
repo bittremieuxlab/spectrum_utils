@@ -183,6 +183,9 @@ class CvEntry(ModificationSource):
         ValueError
             - If an unknown controlled vocabulary identifier is specified.
             - If no mass was specified for a GNO term or its parent terms.
+        SyntaxError
+            If the controlled vocabulary OBO file cannot be parsed (e.g., due to
+            format issues in the upstream vocabulary file).
         """
         cv_by_accession, cv_by_name = _import_cv(cv, cache_dir)
         key, lookup_type = None, None
@@ -846,9 +849,22 @@ def _parse_obo(
     ------
     ValueError
         If no mass was specified for a GNO term or its parent terms.
+    SyntaxError
+        If the OBO file cannot be parsed (e.g., due to format issues in the
+        upstream controlled vocabulary file).
     """
     cv_by_accession, cv_by_name, gno_graph = {}, {}, {}
-    for frame in fastobo.load(obo_fh):
+    try:
+        frames = fastobo.load(obo_fh)
+    except SyntaxError as e:
+        error_msg = (
+            f"Failed to parse {cv_id} controlled vocabulary OBO file. "
+            f"This is likely due to a format issue in the upstream vocabulary file. "
+            f"Original error: {e}"
+        )
+        raise SyntaxError(error_msg) from e
+
+    for frame in frames:
         term_accession, term_name, term_mass = str(frame.id), None, None
         if isinstance(frame, fastobo.term.TermFrame):
             for clause in frame:
