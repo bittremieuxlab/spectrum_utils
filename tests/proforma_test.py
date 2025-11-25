@@ -229,7 +229,8 @@ def test_proforma_name():
                 f"XLMOD parsing failed due to known upstream OBO format issue: {e}"
             )
         else:
-            raise  # GNO named modification (mandatory prefix).
+            raise
+    # GNO named modification (mandatory prefix).
     proteoform = proforma.parse("NEEYN[G:G59626AS]K")[0]
     assert proteoform.sequence == "NEEYNK"
     assert (
