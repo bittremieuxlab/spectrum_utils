@@ -699,14 +699,15 @@ def _parse_with_named_mods_fast_path(
     if nterm_pattern:
         nterm_mod_str = nterm_pattern.group(1)
 
-        if nterm_mod_str in NAMED_MODS_FAST_PATH:
-            mod_name = next(
-                (k for k in NAMED_MODS_FAST_PATH.keys()
-                 if k.lower() == nterm_mod_str.lower()),
-                None
-            )
-            if mod_name is None:
-                return None
+        mod_name = next(
+            (
+                k
+                for k in NAMED_MODS_FAST_PATH.keys()
+                if k.lower() == nterm_mod_str.lower()
+            ),
+            None,
+        )
+        if mod_name is not None:
             nterm_mass = NAMED_MODS_FAST_PATH[mod_name]
             nterm_source = CvEntry(name=mod_name)
         else:
@@ -742,11 +743,14 @@ def _parse_with_named_mods_fast_path(
         if mod_str:
             # Check if it's a named modification
             mod_name = next(
-                (k for k in NAMED_MODS_FAST_PATH.keys()
-                 if k.lower() == mod_str.lower()),
-                None
+                (
+                    k
+                    for k in NAMED_MODS_FAST_PATH.keys()
+                    if k.lower() == mod_str.lower()
+                ),
+                None,
             )
-            
+
             if mod_name is not None:
                 # Named modification - create CvEntry for UNIMOD compatibility
                 mass_val = NAMED_MODS_FAST_PATH[mod_name]

@@ -56,27 +56,29 @@ def test_proforma_fast_path_named_mods():
     # Simple unmodified sequence
     proteoform = proforma.parse("PEPTIDE")[0]
     assert proteoform.sequence == "PEPTIDE"
-    assert proteoform.modifications is None or len(proteoform.modifications) == 0
-    
+    assert (
+        proteoform.modifications is None or len(proteoform.modifications) == 0
+    )
+
     # Unmodified with charge
     proteoform = proforma.parse("PEPTIDE/2")[0]
     assert proteoform.sequence == "PEPTIDE"
     assert proteoform.charge.charge == 2
-    
+
     # Carbamidomethyl modification (most common)
     proteoform = proforma.parse("PEPC[Carbamidomethyl]TIDE")[0]
     assert proteoform.sequence == "PEPCTIDE"
     assert len(proteoform.modifications) == 1
     assert abs(proteoform.modifications[0].mass - 57.0215) < 0.001
     assert proteoform.modifications[0].position == 3
-    
+
     # Oxidation on methionine
     proteoform = proforma.parse("PEPTIDEM[Oxidation]")[0]
     assert proteoform.sequence == "PEPTIDEM"
     assert len(proteoform.modifications) == 1
     assert abs(proteoform.modifications[0].mass - 15.9949) < 0.001
     assert proteoform.modifications[0].position == 7
-    
+
     # Multiple modifications
     proteoform = proforma.parse("M[Oxidation]PEPC[Carbamidomethyl]TIDE")[0]
     assert proteoform.sequence == "MPEPCTIDE"
@@ -85,14 +87,14 @@ def test_proforma_fast_path_named_mods():
     assert proteoform.modifications[0].position == 0
     assert abs(proteoform.modifications[1].mass - 57.0215) < 0.001
     assert proteoform.modifications[1].position == 4
-    
+
     # N-terminal modification
     proteoform = proforma.parse("[Acetyl]-PEPTIDE")[0]
     assert proteoform.sequence == "PEPTIDE"
     assert len(proteoform.modifications) == 1
     assert abs(proteoform.modifications[0].mass - 42.0106) < 0.001
     assert proteoform.modifications[0].position == "N-term"
-    
+
     # N-terminal with other modifications
     proteoform = proforma.parse("[Acetyl]-M[Oxidation]PEPTIDE")[0]
     assert proteoform.sequence == "MPEPTIDE"
@@ -103,34 +105,34 @@ def test_proforma_fast_path_named_mods():
     # Oxidation on M
     assert abs(proteoform.modifications[1].mass - 15.9949) < 0.001
     assert proteoform.modifications[1].position == 0
-    
+
     # Phosphorylation
     proteoform = proforma.parse("PEPTES[Phospho]PEK")[0]
     assert proteoform.sequence == "PEPTESPEK"
     assert len(proteoform.modifications) == 1
     assert abs(proteoform.modifications[0].mass - 79.9663) < 0.001
     assert proteoform.modifications[0].position == 5
-    
+
     # Deamidation
     proteoform = proforma.parse("PEPTN[Deamidated]IDE")[0]
     assert proteoform.sequence == "PEPTNIDE"
     assert len(proteoform.modifications) == 1
     assert abs(proteoform.modifications[0].mass - 0.9840) < 0.001
     assert proteoform.modifications[0].position == 4
-    
+
     # Mass modification (numeric)
     proteoform = proforma.parse("PEPC[+57.021]TIDE")[0]
     assert proteoform.sequence == "PEPCTIDE"
     assert len(proteoform.modifications) == 1
     assert abs(proteoform.modifications[0].mass - 57.021) < 0.001
     assert proteoform.modifications[0].position == 3
-    
+
     # Multiple modifications with charge
     proteoform = proforma.parse("M[Oxidation]PEPC[Carbamidomethyl]TIDE/2")[0]
     assert proteoform.sequence == "MPEPCTIDE"
     assert len(proteoform.modifications) == 2
     assert proteoform.charge.charge == 2
-    
+
     # Case insensitive
     proteoform = proforma.parse("m[oxidation]pepc[carbamidomethyl]tide")[0]
     assert proteoform.sequence == "MPEPCTIDE"
