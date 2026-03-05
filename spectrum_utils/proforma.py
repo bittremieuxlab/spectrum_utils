@@ -36,6 +36,35 @@ except ImportError:
 
 UNMODIFIED_PEPTIDE_REGEX = re.compile(r"^([A-Za-z]+)(/-?[0-9]+)?$")
 
+# Named modifications fast path dictionary
+NAMED_MODS_FAST_PATH = {
+    "Carbamidomethyl": 57.021464,
+    "Oxidation": 15.994915,
+    "Acetyl": 42.010565,
+    "Carbamyl": 43.005814,
+    "Deamidated": 0.984016,
+    "Ammonia-loss": -17.026549,
+    "Phospho": 79.966331,
+    "Methyl": 14.015650,
+}
+
+
+def _build_named_mods_regex():
+    """Build regex for fast path parsing of simple modifications."""
+    mod_names_pattern = "|".join(
+        re.escape(name) for name in NAMED_MODS_FAST_PATH.keys()
+    )
+    single_mod_pattern = rf"(?:{mod_names_pattern}|[+\-]?\d+(?:\.\d+)?)"
+    nterm_pattern = rf"(?:\[{single_mod_pattern}\]-)?"
+    aa_with_mod_pattern = rf"[A-Z](?:\[{single_mod_pattern}\])?"
+    sequence_pattern = rf"((?:{aa_with_mod_pattern})+)"
+    charge_pattern = r"(?:/([+\-]?\d+))?"
+    pattern = rf"^{nterm_pattern}{sequence_pattern}{charge_pattern}$"
+    return re.compile(pattern, re.IGNORECASE)
+
+
+NAMED_MODS_REGEX = _build_named_mods_regex()
+
 # Set to None to disable caching.
 cache_dir = platformdirs.user_cache_dir("spectrum_utils", False)
 
@@ -639,6 +668,119 @@ def _build_parser() -> lark.Lark:
     return parser
 
 
+def _parse_with_named_mods_fast_path(
+    proforma: str,
+) -> Optional[List[Proteoform]]:
+    """
+    Fast path parser for simple mass and named modifications.
+
+    Returns None if the sequence doesn't match the fast path pattern.
+
+    Supports:
+    - Unmodified: PEPTIDE, PEPTIDE/2
+    - Mass mods: M[+15.9949]PEPTIDE
+    - Named mods: M[Oxidation]PEPTIDE, C[Carbamidomethyl]PEPTIDE
+    - N-terminal mods: [Acetyl]-PEPTIDE, [+42.0106]-PEPTIDE
+    - Mixed: [Acetyl]-M[Oxidation]PEP[+79.9663]TIDE/2
+    """
+    match = NAMED_MODS_REGEX.match(proforma)
+    if not match:
+        return None
+
+    sequence_part = match.group(1)
+    charge_str = match.group(2)
+
+    # Parse charge
+    charge = Charge(int(charge_str)) if charge_str else None
+
+    # Check for N-terminal modification
+    nterm_modification = None
+    nterm_pattern = re.match(r"^\[([^\]]+)\]-", proforma)
+    if nterm_pattern:
+        nterm_mod_str = nterm_pattern.group(1)
+
+        if nterm_mod_str in NAMED_MODS_FAST_PATH:
+            mod_name = next(
+                (k for k in NAMED_MODS_FAST_PATH.keys()
+                 if k.lower() == nterm_mod_str.lower()),
+                None
+            )
+            if mod_name is None:
+                return None
+            nterm_mass = NAMED_MODS_FAST_PATH[mod_name]
+            nterm_source = CvEntry(name=mod_name)
+        else:
+            try:
+                nterm_mass = float(nterm_mod_str)
+                nterm_source = Mass(mass=nterm_mass)
+            except ValueError:
+                return None
+
+        nterm_modification = Modification(
+            mass=nterm_mass, position="N-term", source=[nterm_source]
+        )
+
+    # Parse sequence and inline modifications
+    sequence = []
+    modifications = []
+
+    mod_names_pattern = "|".join(
+        re.escape(n) for n in NAMED_MODS_FAST_PATH.keys()
+    )
+    aa_mod_pattern = re.compile(
+        rf"([A-Z])(?:\[({mod_names_pattern}|[+\-]?\d+(?:\.\d+)?)\])?",
+        re.IGNORECASE,
+    )
+
+    position = 0
+    for aa_match in aa_mod_pattern.finditer(sequence_part):
+        aa = aa_match.group(1)
+        mod_str = aa_match.group(2)
+
+        sequence.append(aa.upper())
+
+        if mod_str:
+            # Check if it's a named modification
+            mod_name = next(
+                (k for k in NAMED_MODS_FAST_PATH.keys()
+                 if k.lower() == mod_str.lower()),
+                None
+            )
+            
+            if mod_name is not None:
+                # Named modification - create CvEntry for UNIMOD compatibility
+                mass_val = NAMED_MODS_FAST_PATH[mod_name]
+                mod_source = CvEntry(name=mod_name)
+            else:
+                # Mass modification
+                try:
+                    mass_val = float(mod_str)
+                    mod_source = Mass(mass=mass_val)
+                except ValueError:
+                    return None  # Invalid format, fall back
+
+            mod = Modification(
+                mass=mass_val, position=position, source=[mod_source]
+            )
+            modifications.append(mod)
+
+        position += 1
+
+    # Combine N-terminal and inline modifications
+    all_modifications = []
+    if nterm_modification:
+        all_modifications.append(nterm_modification)
+    all_modifications.extend(modifications)
+
+    return [
+        Proteoform(
+            sequence="".join(sequence),
+            modifications=all_modifications if all_modifications else None,
+            charge=charge,
+        )
+    ]
+
+
 def parse(proforma: str) -> List[Proteoform]:
     """
     Parse a ProForma-encoded string.
@@ -681,6 +823,12 @@ def parse(proforma: str) -> List[Proteoform]:
             Proteoform(sequence=match_unmod.group(1).upper(), charge=charge)
         ]
 
+    # Fast path for simple mass and named modifications.
+    named_mods_result = _parse_with_named_mods_fast_path(proforma)
+    if named_mods_result is not None:
+        return named_mods_result
+
+    # Fall back to full Earley parser for complex ProForma features.
     parser = _build_parser()
     # noinspection PyUnresolvedReferences
     try:
