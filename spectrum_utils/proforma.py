@@ -61,12 +61,18 @@ def _build_named_mods_regexes(
     Cached so that repeated calls with the same (immutable) mapping don't
     rebuild the regexes, which is what keeps the fast path fast.
     """
+    # ProForma mass modifications require an explicit sign (see MOD_MASS in
+    # proforma.ebnf), and an empty `mod_names_pattern` (no named mods) must
+    # not introduce an empty alternative that would match e.g. "M[]".
+    mod_alternatives = [r"[+\-]\d+(?:\.\d+)?"]
     mod_names_pattern = "|".join(
         re.escape(name) for name, _ in named_mods_items
     )
-    single_mod_pattern = rf"(?:{mod_names_pattern}|[+\-]?\d+(?:\.\d+)?)"
-    nterm_pattern = rf"(?:\[{single_mod_pattern}\]-)?"
-    aa_with_mod_pattern = rf"[A-Z](?:\[{single_mod_pattern}\])?"
+    if mod_names_pattern:
+        mod_alternatives.insert(0, mod_names_pattern)
+    single_mod_pattern = "|".join(mod_alternatives)
+    nterm_pattern = rf"(?:\[(?:{single_mod_pattern})\]-)?"
+    aa_with_mod_pattern = rf"[A-Z](?:\[(?:{single_mod_pattern})\])?"
     sequence_pattern = rf"((?:{aa_with_mod_pattern})+)"
     charge_pattern = r"(?:/([+\-]?\d+))?"
     sequence_regex = re.compile(
@@ -74,7 +80,7 @@ def _build_named_mods_regexes(
         re.IGNORECASE,
     )
     aa_mod_regex = re.compile(
-        rf"([A-Z])(?:\[({mod_names_pattern}|[+\-]?\d+(?:\.\d+)?)\])?",
+        rf"([A-Z])(?:\[({single_mod_pattern})\])?",
         re.IGNORECASE,
     )
     return sequence_regex, aa_mod_regex
@@ -683,6 +689,22 @@ def _build_parser() -> lark.Lark:
     return parser
 
 
+def _named_mod_source(mod_name: str, mass: float) -> ModificationSource:
+    """
+    Build the modification source for a matched named modification.
+
+    Only names that are part of the built-in `NAMED_MODS_FAST_PATH` mapping
+    are known to correspond to a real UNIMOD entry, so those get a `CvEntry`
+    that resolves against the controlled vocabulary. Caller-supplied names
+    are not guaranteed to be resolvable, so they get a plain `Mass` source
+    instead of a `CvEntry` that would raise a `KeyError` when its metadata
+    (e.g. accession) is later accessed.
+    """
+    if mod_name in NAMED_MODS_FAST_PATH:
+        return CvEntry(name=mod_name)
+    return Mass(mass=mass)
+
+
 def _parse_with_named_mods_fast_path(
     proforma: str,
     named_mods: Dict[str, float],
@@ -731,7 +753,7 @@ def _parse_with_named_mods_fast_path(
         )
         if mod_name is not None:
             nterm_mass = named_mods[mod_name]
-            nterm_source = CvEntry(name=mod_name)
+            nterm_source = _named_mod_source(mod_name, nterm_mass)
         else:
             try:
                 nterm_mass = float(nterm_mod_str)
@@ -762,9 +784,8 @@ def _parse_with_named_mods_fast_path(
             )
 
             if mod_name is not None:
-                # Named modification - create CvEntry for UNIMOD compatibility
                 mass_val = named_mods[mod_name]
-                mod_source = CvEntry(name=mod_name)
+                mod_source = _named_mod_source(mod_name, mass_val)
             else:
                 # Mass modification
                 try:

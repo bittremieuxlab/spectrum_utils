@@ -101,9 +101,9 @@ def test_from_usi():
             continue
 
     # Ensure at least one USI was successfully parsed
-    assert len(successful_parses) > 0, (
-        "All USIs failed to parse. This may indicate a problem with the code or external APIs."
-    )
+    assert (
+        len(successful_parses) > 0
+    ), "All USIs failed to parse. This may indicate a problem with the code or external APIs."
 
     # Test USI with ProForma annotations (should work now that pyteomics backend is fixed)
     proforma_usis = [

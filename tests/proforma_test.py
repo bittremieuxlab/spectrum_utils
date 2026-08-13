@@ -170,6 +170,27 @@ def test_proforma_fast_path_custom_named_mods():
     proteoform = proforma.parse("PEPC[Carbamidomethyl]TIDE")[0]
     assert abs(proteoform.modifications[0].mass - 57.0215) < 0.001
 
+    # A caller-supplied name that isn't a real controlled-vocabulary term
+    # must not be wrapped in a `CvEntry`, since that would raise `KeyError`
+    # as soon as its metadata (e.g. via `repr`) is accessed.
+    proteoform = proforma.parse("PEPC[Foo]TIDE", named_mods=custom_mods)[0]
+    modification = proteoform.modifications[0]
+    assert isinstance(modification.source[0], proforma.Mass)
+    repr(modification)  # Must not raise.
+
+    # Numeric mass modifications require an explicit sign; unsigned brackets
+    # are not valid ProForma and must not be silently fast-pathed. Falling
+    # back to the full parser, "57.021" is treated as an (unresolvable)
+    # modification name rather than a mass.
+    proteoform = proforma.parse("PEPC[57.021]TIDE", named_mods=custom_mods)[0]
+    with pytest.raises(KeyError):
+        proteoform.modifications[0].mass
+
+    # An empty named_mods mapping must not introduce an empty regex
+    # alternative that silently accepts invalid syntax such as "C[]".
+    with pytest.raises(lark.exceptions.UnexpectedInput):
+        proforma.parse("PEPC[]TIDE", named_mods={})
+
 
 # noinspection DuplicatedCode
 # noinspection PyUnresolvedReferences
