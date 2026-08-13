@@ -139,6 +139,38 @@ def test_proforma_fast_path_named_mods():
     assert len(proteoform.modifications) == 2
 
 
+def test_proforma_fast_path_custom_named_mods():
+    """Test fast path parsing with a caller-supplied named mods mapping."""
+    custom_mods = {"Foo": 12.3456}
+
+    # A mod present in the custom mapping is fast-pathed.
+    proteoform = proforma.parse("PEPC[Foo]TIDE", named_mods=custom_mods)[0]
+    assert proteoform.sequence == "PEPCTIDE"
+    assert len(proteoform.modifications) == 1
+    assert abs(proteoform.modifications[0].mass - 12.3456) < 1e-6
+    assert proteoform.modifications[0].position == 3
+
+    # A mod from the default mapping is not recognized when a custom
+    # mapping is supplied, so it falls back to the full ProForma parser
+    # (which resolves "Oxidation" via the UNIMOD controlled vocabulary).
+    proteoform = proforma.parse("PEPTIDEM[Oxidation]", named_mods=custom_mods)[
+        0
+    ]
+    assert proteoform.sequence == "PEPTIDEM"
+    assert len(proteoform.modifications) == 1
+    assert abs(proteoform.modifications[0].mass - 15.994915) < 0.001
+
+    # Numeric mass modifications and unmodified sequences keep working
+    # regardless of the supplied named mods mapping.
+    proteoform = proforma.parse("PEPC[+57.021]TIDE", named_mods=custom_mods)[0]
+    assert proteoform.sequence == "PEPCTIDE"
+    assert abs(proteoform.modifications[0].mass - 57.021) < 0.001
+
+    # Not passing named_mods keeps using the default mapping.
+    proteoform = proforma.parse("PEPC[Carbamidomethyl]TIDE")[0]
+    assert abs(proteoform.modifications[0].mass - 57.0215) < 0.001
+
+
 # noinspection DuplicatedCode
 # noinspection PyUnresolvedReferences
 def test_proforma_name():
