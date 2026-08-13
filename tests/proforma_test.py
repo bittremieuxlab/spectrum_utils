@@ -51,6 +51,147 @@ def test_proforma_unmodified():
     ]
 
 
+def test_proforma_fast_path_named_mods():
+    """Test fast path parsing with common named modifications."""
+    # Simple unmodified sequence
+    proteoform = proforma.parse("PEPTIDE")[0]
+    assert proteoform.sequence == "PEPTIDE"
+    assert (
+        proteoform.modifications is None or len(proteoform.modifications) == 0
+    )
+
+    # Unmodified with charge
+    proteoform = proforma.parse("PEPTIDE/2")[0]
+    assert proteoform.sequence == "PEPTIDE"
+    assert proteoform.charge.charge == 2
+
+    # Carbamidomethyl modification (most common)
+    proteoform = proforma.parse("PEPC[Carbamidomethyl]TIDE")[0]
+    assert proteoform.sequence == "PEPCTIDE"
+    assert len(proteoform.modifications) == 1
+    assert abs(proteoform.modifications[0].mass - 57.0215) < 0.001
+    assert proteoform.modifications[0].position == 3
+
+    # Oxidation on methionine
+    proteoform = proforma.parse("PEPTIDEM[Oxidation]")[0]
+    assert proteoform.sequence == "PEPTIDEM"
+    assert len(proteoform.modifications) == 1
+    assert abs(proteoform.modifications[0].mass - 15.9949) < 0.001
+    assert proteoform.modifications[0].position == 7
+
+    # Multiple modifications
+    proteoform = proforma.parse("M[Oxidation]PEPC[Carbamidomethyl]TIDE")[0]
+    assert proteoform.sequence == "MPEPCTIDE"
+    assert len(proteoform.modifications) == 2
+    assert abs(proteoform.modifications[0].mass - 15.9949) < 0.001
+    assert proteoform.modifications[0].position == 0
+    assert abs(proteoform.modifications[1].mass - 57.0215) < 0.001
+    assert proteoform.modifications[1].position == 4
+
+    # N-terminal modification
+    proteoform = proforma.parse("[Acetyl]-PEPTIDE")[0]
+    assert proteoform.sequence == "PEPTIDE"
+    assert len(proteoform.modifications) == 1
+    assert abs(proteoform.modifications[0].mass - 42.0106) < 0.001
+    assert proteoform.modifications[0].position == "N-term"
+
+    # N-terminal with other modifications
+    proteoform = proforma.parse("[Acetyl]-M[Oxidation]PEPTIDE")[0]
+    assert proteoform.sequence == "MPEPTIDE"
+    assert len(proteoform.modifications) == 2
+    # N-terminal mod
+    assert abs(proteoform.modifications[0].mass - 42.0106) < 0.001
+    assert proteoform.modifications[0].position == "N-term"
+    # Oxidation on M
+    assert abs(proteoform.modifications[1].mass - 15.9949) < 0.001
+    assert proteoform.modifications[1].position == 0
+
+    # Phosphorylation
+    proteoform = proforma.parse("PEPTES[Phospho]PEK")[0]
+    assert proteoform.sequence == "PEPTESPEK"
+    assert len(proteoform.modifications) == 1
+    assert abs(proteoform.modifications[0].mass - 79.9663) < 0.001
+    assert proteoform.modifications[0].position == 5
+
+    # Deamidation
+    proteoform = proforma.parse("PEPTN[Deamidated]IDE")[0]
+    assert proteoform.sequence == "PEPTNIDE"
+    assert len(proteoform.modifications) == 1
+    assert abs(proteoform.modifications[0].mass - 0.9840) < 0.001
+    assert proteoform.modifications[0].position == 4
+
+    # Mass modification (numeric)
+    proteoform = proforma.parse("PEPC[+57.021]TIDE")[0]
+    assert proteoform.sequence == "PEPCTIDE"
+    assert len(proteoform.modifications) == 1
+    assert abs(proteoform.modifications[0].mass - 57.021) < 0.001
+    assert proteoform.modifications[0].position == 3
+
+    # Multiple modifications with charge
+    proteoform = proforma.parse("M[Oxidation]PEPC[Carbamidomethyl]TIDE/2")[0]
+    assert proteoform.sequence == "MPEPCTIDE"
+    assert len(proteoform.modifications) == 2
+    assert proteoform.charge.charge == 2
+
+    # Case insensitive
+    proteoform = proforma.parse("m[oxidation]pepc[carbamidomethyl]tide")[0]
+    assert proteoform.sequence == "MPEPCTIDE"
+    assert len(proteoform.modifications) == 2
+
+
+def test_proforma_fast_path_custom_named_mods():
+    """Test fast path parsing with a caller-supplied named mods mapping."""
+    custom_mods = {"Foo": 12.3456}
+
+    # A mod present in the custom mapping is fast-pathed.
+    proteoform = proforma.parse("PEPC[Foo]TIDE", named_mods=custom_mods)[0]
+    assert proteoform.sequence == "PEPCTIDE"
+    assert len(proteoform.modifications) == 1
+    assert abs(proteoform.modifications[0].mass - 12.3456) < 1e-6
+    assert proteoform.modifications[0].position == 3
+
+    # A mod from the default mapping is not recognized when a custom
+    # mapping is supplied, so it falls back to the full ProForma parser
+    # (which resolves "Oxidation" via the UNIMOD controlled vocabulary).
+    proteoform = proforma.parse("PEPTIDEM[Oxidation]", named_mods=custom_mods)[
+        0
+    ]
+    assert proteoform.sequence == "PEPTIDEM"
+    assert len(proteoform.modifications) == 1
+    assert abs(proteoform.modifications[0].mass - 15.994915) < 0.001
+
+    # Numeric mass modifications and unmodified sequences keep working
+    # regardless of the supplied named mods mapping.
+    proteoform = proforma.parse("PEPC[+57.021]TIDE", named_mods=custom_mods)[0]
+    assert proteoform.sequence == "PEPCTIDE"
+    assert abs(proteoform.modifications[0].mass - 57.021) < 0.001
+
+    # Not passing named_mods keeps using the default mapping.
+    proteoform = proforma.parse("PEPC[Carbamidomethyl]TIDE")[0]
+    assert abs(proteoform.modifications[0].mass - 57.0215) < 0.001
+
+    # A caller-supplied name that isn't a real controlled-vocabulary term
+    # must not be wrapped in a `CvEntry`, since that would raise `KeyError`
+    # as soon as its metadata (e.g. via `repr`) is accessed.
+    proteoform = proforma.parse("PEPC[Foo]TIDE", named_mods=custom_mods)[0]
+    modification = proteoform.modifications[0]
+    assert isinstance(modification.source[0], proforma.Mass)
+    repr(modification)  # Must not raise.
+
+    # Numeric mass modifications require an explicit sign; unsigned brackets
+    # are not valid ProForma and must not be silently fast-pathed. Falling
+    # back to the full parser, "57.021" is treated as an (unresolvable)
+    # modification name rather than a mass.
+    proteoform = proforma.parse("PEPC[57.021]TIDE", named_mods=custom_mods)[0]
+    with pytest.raises(KeyError):
+        proteoform.modifications[0].mass
+
+    # An empty named_mods mapping must not introduce an empty regex
+    # alternative that silently accepts invalid syntax such as "C[]".
+    with pytest.raises(lark.exceptions.UnexpectedInput):
+        proforma.parse("PEPC[]TIDE", named_mods={})
+
+
 # noinspection DuplicatedCode
 # noinspection PyUnresolvedReferences
 def test_proforma_name():
@@ -1106,7 +1247,7 @@ def test_proforma_glycan():
         proteoform.modifications is not None
         and len(proteoform.modifications) == 1
     )
-    assert proteoform.modifications[0].mass == 527.185019356
+    assert proteoform.modifications[0].mass == 527.185
     assert proteoform.modifications[0].position == 5
     assert (
         proteoform.modifications is not None
@@ -1129,7 +1270,7 @@ def test_proforma_glycan():
         proteoform.modifications is not None
         and len(proteoform.modifications) == 1
     )
-    assert proteoform.modifications[0].mass == 527.185019356
+    assert proteoform.modifications[0].mass == 527.185
     assert proteoform.modifications[0].position == 5
     assert (
         proteoform.modifications is not None
@@ -1241,7 +1382,7 @@ def test_proforma_special():
         proteoform.modifications is not None
         and len(proteoform.modifications) == 4
     )
-    assert proteoform.modifications[0].mass == 162.052823418
+    assert proteoform.modifications[0].mass == 162.0528
     assert proteoform.modifications[0].position == "labile"
     assert (
         proteoform.modifications[0].source[0].composition[0].monosaccharide
@@ -1281,7 +1422,7 @@ def test_proforma_special():
         proteoform.modifications is not None
         and len(proteoform.modifications) == 5
     )
-    assert proteoform.modifications[0].mass == 162.052823418
+    assert proteoform.modifications[0].mass == 162.0528
     assert proteoform.modifications[0].position == "labile"
     assert (
         proteoform.modifications[0].source[0].composition[0].monosaccharide
@@ -1330,7 +1471,7 @@ def test_proforma_special():
         proteoform.modifications is not None
         and len(proteoform.modifications) == 6
     )
-    assert proteoform.modifications[0].mass == 162.052823418
+    assert proteoform.modifications[0].mass == 162.0528
     assert proteoform.modifications[0].position == "labile"
     assert (
         proteoform.modifications[0].source[0].composition[0].monosaccharide
@@ -1384,7 +1525,7 @@ def test_proforma_special():
         proteoform.modifications is not None
         and len(proteoform.modifications) == 2
     )
-    assert proteoform.modifications[0].mass == 162.052823418
+    assert proteoform.modifications[0].mass == 162.0528
     assert proteoform.modifications[0].position == "labile"
     assert (
         proteoform.modifications[0].source[0].composition[0].monosaccharide
@@ -1392,7 +1533,7 @@ def test_proforma_special():
     )
     assert proteoform.modifications[0].source[0].composition[0].count == 1
     assert proteoform.modifications[0].label is None
-    assert proteoform.modifications[1].mass == 291.095416506
+    assert proteoform.modifications[1].mass == 291.0954
     assert proteoform.modifications[1].position == "labile"
     assert (
         proteoform.modifications[1].source[0].composition[0].monosaccharide
@@ -2495,7 +2636,7 @@ def test_proforma_cache():
         proteoform.modifications is not None
         and len(proteoform.modifications) == 1
     )
-    assert proteoform.modifications[0].mass == 527.185019356
+    assert proteoform.modifications[0].mass == 527.185
     assert proteoform.modifications[0].position == 5
     assert (
         proteoform.modifications is not None
