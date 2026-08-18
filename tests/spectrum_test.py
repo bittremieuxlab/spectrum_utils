@@ -5,6 +5,7 @@ import pickle
 
 import numpy as np
 import pytest
+import pyteomics.usi
 from pyteomics import mass
 
 from spectrum_utils import fragment_annotation as fa, proforma, spectrum
@@ -67,6 +68,22 @@ def test_intensity_array():
         spec.intensity = np.random.lognormal(0, 1, num_peaks)
 
 
+def test_usi_aggregator_backends():
+    # from_usi()'s default "aggregator" backend should query every source.
+    backend_names = set(pyteomics.usi.AGGREGATOR.backends.keys())
+    assert backend_names == {
+        "gnps",
+        "massive",
+        "peptide_atlas",
+        "pride",
+        "jpost",
+        "proteome_exchange",
+    }
+    assert isinstance(
+        pyteomics.usi.AGGREGATOR.backends["gnps"], spectrum.GnpsBackend
+    )
+
+
 def test_from_usi():
     # Test USI that should work (no ProForma annotations)
     working_usis = [
@@ -101,9 +118,9 @@ def test_from_usi():
             continue
 
     # Ensure at least one USI was successfully parsed
-    assert len(successful_parses) > 0, (
-        "All USIs failed to parse. This may indicate a problem with the code or external APIs."
-    )
+    assert (
+        len(successful_parses) > 0
+    ), "All USIs failed to parse. This may indicate a problem with the code or external APIs."
 
     # Test USI with ProForma annotations (should work now that pyteomics backend is fixed)
     proforma_usis = [
