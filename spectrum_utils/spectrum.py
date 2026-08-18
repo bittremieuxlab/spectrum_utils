@@ -27,10 +27,9 @@ class GnpsBackend(pyteomics.usi._PROXIBackend):
         super(GnpsBackend, self).__init__("GNPS", self._url_template, **kwargs)
 
 
-# Register GNPS backend with Pyteomics PROXI aggregator.
-pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator(
-    backends={"gnps": GnpsBackend()}
-)
+# PROXIAggregator() with no explicit backends uses every entry in `_proxies`.
+pyteomics.usi._proxies["gnps"] = GnpsBackend
+pyteomics.usi.AGGREGATOR = pyteomics.usi.PROXIAggregator()
 
 
 @nb.experimental.jitclass
