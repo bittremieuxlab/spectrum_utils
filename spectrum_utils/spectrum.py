@@ -775,10 +775,7 @@ class MsmsSpectrum:
                     fragment = copy.copy(fragments[fragment_i + i][0])
                     fragment.analyte_number = analyte_number
                     fragment.mz_delta = (
-                        round(
-                            mass_diff(peak_mz, fragments[fragment_i + i][1]),
-                            ndigits=5 if fragment_tol_mode == "Da" else 1,
-                        ),
+                        mass_diff(peak_mz, fragments[fragment_i + i][1]),
                         fragment_tol_mode,
                     )
                     pi.fragment_annotations.append(fragment)

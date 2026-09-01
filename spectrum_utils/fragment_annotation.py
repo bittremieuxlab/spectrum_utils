@@ -198,9 +198,11 @@ class FragmentAnnotation:
             if re.match(r"\[M\+\d+H\]", self.adduct) is None:
                 annot_str.append(self.adduct)
             if self.mz_delta is not None:
+                mz_delta, unit = self.mz_delta
+                decimals = 1 if unit == "ppm" else 5
                 annot_str.append(
-                    f"/{self.mz_delta[0]}"
-                    f"{'ppm' if self.mz_delta[1] == 'ppm' else ''}"
+                    f"/{round(mz_delta, decimals)}"
+                    f"{'ppm' if unit == 'ppm' else ''}"
                 )
             return "".join(annot_str)
 

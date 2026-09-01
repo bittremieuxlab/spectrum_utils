@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from pyteomics import mass
 
-from spectrum_utils import fragment_annotation as fa, proforma, spectrum
+from spectrum_utils import fragment_annotation as fa, proforma, spectrum, utils
 
 logger = logging.getLogger(__name__)
 
@@ -559,6 +559,36 @@ def test_annotate_proforma():
         )
         spec.annotate_proforma(peptide, fragment_tol_mass, fragment_tol_mode)
         assert np.count_nonzero(spec.annotation) >= len(fragment_mz)
+
+
+def test_annotate_proforma_preserves_mz_delta_precision():
+    peptide = "PEPTIDE"
+    fragment, theoretical_mz = fa.get_theoretical_fragments(
+        proforma.parse(peptide)[0]
+    )[0]
+    expected_delta_ppm = 1.23456789
+    observed_mz = theoretical_mz * (1 + expected_delta_ppm / 1e6)
+    spec = spectrum.MsmsSpectrum(
+        "test_spectrum",
+        precursor_mz=500,
+        precursor_charge=2,
+        mz=np.array([observed_mz]),
+        intensity=np.array([1.0]),
+    )
+
+    spec.annotate_proforma(peptide, 10, "ppm")
+
+    annotation = next(
+        annotation
+        for annotation in spec.annotation[0].fragment_annotations
+        if annotation.ion_type == fragment.ion_type
+        and annotation.charge == fragment.charge
+    )
+    expected_delta = utils.mass_diff(
+        observed_mz, theoretical_mz, mode_is_da=False
+    )
+    assert annotation.mz_delta[0] == pytest.approx(expected_delta)
+    assert annotation.mz_delta[0] != round(expected_delta, 1)
 
 
 def test_annotate_proforma_neutral_loss():

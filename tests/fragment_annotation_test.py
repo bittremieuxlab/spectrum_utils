@@ -31,6 +31,20 @@ def test_fragment_annotation_primary():
         fragment_annotation.FragmentAnnotation("b5", charge=-2)
 
 
+@pytest.mark.parametrize(
+    ("mz_delta", "expected"),
+    [
+        ((1.23456789, "ppm"), "b5/1.2ppm"),
+        ((0.00123456789, "Da"), "b5/0.00123"),
+    ],
+)
+def test_fragment_annotation_mz_delta_display_precision(mz_delta, expected):
+    annotation = fragment_annotation.FragmentAnnotation(
+        "b5", charge=1, mz_delta=mz_delta
+    )
+    assert str(annotation) == expected
+
+
 def test_get_theoretical_fragments():
     peptide = proforma.parse("HPYLEDR")[0]
     fragments = {
