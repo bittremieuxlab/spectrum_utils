@@ -1106,7 +1106,7 @@ def test_proforma_glycan():
         proteoform.modifications is not None
         and len(proteoform.modifications) == 1
     )
-    assert proteoform.modifications[0].mass == 527.185019356
+    assert proteoform.modifications[0].mass == 527.18501935651
     assert proteoform.modifications[0].position == 5
     assert (
         proteoform.modifications is not None
@@ -1129,7 +1129,7 @@ def test_proforma_glycan():
         proteoform.modifications is not None
         and len(proteoform.modifications) == 1
     )
-    assert proteoform.modifications[0].mass == 527.185019356
+    assert proteoform.modifications[0].mass == 527.18501935651
     assert proteoform.modifications[0].position == 5
     assert (
         proteoform.modifications is not None
@@ -1241,7 +1241,7 @@ def test_proforma_special():
         proteoform.modifications is not None
         and len(proteoform.modifications) == 4
     )
-    assert proteoform.modifications[0].mass == 162.052823418
+    assert proteoform.modifications[0].mass == 162.0528234185
     assert proteoform.modifications[0].position == "labile"
     assert (
         proteoform.modifications[0].source[0].composition[0].monosaccharide
@@ -1281,7 +1281,7 @@ def test_proforma_special():
         proteoform.modifications is not None
         and len(proteoform.modifications) == 5
     )
-    assert proteoform.modifications[0].mass == 162.052823418
+    assert proteoform.modifications[0].mass == 162.0528234185
     assert proteoform.modifications[0].position == "labile"
     assert (
         proteoform.modifications[0].source[0].composition[0].monosaccharide
@@ -1330,7 +1330,7 @@ def test_proforma_special():
         proteoform.modifications is not None
         and len(proteoform.modifications) == 6
     )
-    assert proteoform.modifications[0].mass == 162.052823418
+    assert proteoform.modifications[0].mass == 162.0528234185
     assert proteoform.modifications[0].position == "labile"
     assert (
         proteoform.modifications[0].source[0].composition[0].monosaccharide
@@ -1384,7 +1384,7 @@ def test_proforma_special():
         proteoform.modifications is not None
         and len(proteoform.modifications) == 2
     )
-    assert proteoform.modifications[0].mass == 162.052823418
+    assert proteoform.modifications[0].mass == 162.0528234185
     assert proteoform.modifications[0].position == "labile"
     assert (
         proteoform.modifications[0].source[0].composition[0].monosaccharide
@@ -1392,7 +1392,7 @@ def test_proforma_special():
     )
     assert proteoform.modifications[0].source[0].composition[0].count == 1
     assert proteoform.modifications[0].label is None
-    assert proteoform.modifications[1].mass == 291.095416506
+    assert proteoform.modifications[1].mass == 291.09541650647
     assert proteoform.modifications[1].position == "labile"
     assert (
         proteoform.modifications[1].source[0].composition[0].monosaccharide
@@ -2495,7 +2495,7 @@ def test_proforma_cache():
         proteoform.modifications is not None
         and len(proteoform.modifications) == 1
     )
-    assert proteoform.modifications[0].mass == 527.185019356
+    assert proteoform.modifications[0].mass == 527.18501935651
     assert proteoform.modifications[0].position == 5
     assert (
         proteoform.modifications is not None
