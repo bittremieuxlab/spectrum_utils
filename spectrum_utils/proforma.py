@@ -810,7 +810,15 @@ def _import_cv(
             )
             cv = {}
             for term in mono_json["terms"].values():
-                mass = float(term["has_monoisotopic_mass"])
+                # Compute the mass from the chemical formula if available
+                # to preserve full precision, because the mass values in
+                # the upstream file are rounded to four decimals.
+                if "has_chemical_formula" in term:
+                    mass = pmass.calculate_mass(
+                        formula=term["has_chemical_formula"]
+                    )
+                else:
+                    mass = float(term["has_monoisotopic_mass"])
                 cv[term["name"]] = mass
                 for synonym in term.get("synonym", []):
                     cv[synonym] = mass
